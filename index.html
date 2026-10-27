@@ -111,7 +111,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v8</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v9</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -150,22 +150,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
       <button class="btn" onclick="copyTok()">复制 Token</button>
       <button class="btn sec" onclick="upgradeNow()">升级为4天</button>
     </div>
-    <p class="muted">Token 存在本页（localStorage），切到「一键刷分」直接用。每扫一次自动续 4 天。</p>
-  </div>
-
-  <div class="card">
-    <h2>首次注入 Token（只做一次）</h2>
-    <div class="warnBox">
-      <b>为什么要注入？</b>官方二维码必须由服务端注册后才可扫（否则提示失效），
-      而注册需要一个有效 Token。<b>注入一次之后，这条链就自持了</b>——之后每次扫码都会自动续 4 天，再也不用注入。
-    </div>
-    <div class="step"><div class="n">1</div><div>复制下面这段 Token（或让助手给你一个<b>带参数的一键链接</b>，点开即自动注入）</div></div>
-    <textarea id="pasteTok" placeholder="eyJhbGciOiJIUzI1NiIs…（400 字符）" style="min-height:64px"></textarea>
-    <button class="btn" onclick="pasteToken()">保存并启用</button>
-    <div id="pasteStatus" class="kv" style="display:none"></div>
-    <p class="muted" style="margin-top:10px">
-      提示：如果链接里带了 <code>?t=</code> 参数，打开时会<b>自动注入并清除参数</b>，无需任何操作。
-    </p>
+    <p class="muted">Token 只属于当前登录账号，互不串号。扫码后自动填入，切到「一键刷分」直接用。</p>
   </div>
 
   <div class="card">
@@ -259,16 +244,12 @@ const COMMENTS = [
 "奋斗的青春最美丽，共勉！","智慧铁路建设成果喜人！","保通保畅，功不可没！",
 "工匠精神值得每个人学习！","新征程新气象，未来可期！","为默默奉献的铁路人鼓掌！"];
 
-const LS_TOK = "gtrmt_token";
-const LS_STATE = "gtrmt_state";
-const LS_SCENE = "gtrmt_scene";
 const LS_AUTH = "gtrmt_auth";
 const LS_SESSION = "gtrmt_session";
 const BACKEND = "https://1518012290-4hjv0coif1.ap-guangzhou.tencentscf.com";
 
 const sleep = ms => new Promise(r=>setTimeout(r, ms));
 function log2(s){ const el=document.getElementById('status'); el.style.display='block'; el.innerHTML=s; }
-function plog(s){ const el=document.getElementById('pasteStatus'); el.style.display='block'; el.innerHTML=s; }
 
 /* ================= 登录鉴权 ================= */
 /* 密码 hanghang 的 SHA-256（源码里不存明文） */
@@ -468,9 +449,13 @@ async function loadLogs(){
   }catch(e){ el.innerHTML = '❌ 无法连接服务器：' + e.message; }
 }
 
-/* ================= Token ================= */
-function getToken(){ try{ return localStorage.getItem(LS_TOK)||""; }catch(e){ return ""; } }
-function saveToken(t){ try{ localStorage.setItem(LS_TOK,t); }catch(e){} updateChip(); fillTokBox(); if(typeof setDiag==='function') setDiag('处理中…'); }
+/* ================= Token（按账号隔离） ================= */
+function uname(){ return (SESSION && SESSION.username) ? SESSION.username : 'anon'; }
+function tokKey(){ return "gtrmt_token_" + uname(); }
+function stateKey(){ return "gtrmt_state_" + uname(); }
+function sceneKey(){ return "gtrmt_scene_" + uname(); }
+function getToken(){ try{ return localStorage.getItem(tokKey())||""; }catch(e){ return ""; } }
+function saveToken(t){ try{ localStorage.setItem(tokKey(),t); }catch(e){} updateChip(); fillTokBox(); if(typeof setDiag==='function') setDiag('处理中…'); }
 function jwtInfo(t){
   try{
     const b=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
@@ -552,7 +537,7 @@ async function bootstrapFromUrl(){
   return true;
 }
 
-/* ================= 升级 4 天 / 手动粘贴 ================= */
+/* ================= 升级 4 天 ================= */
 async function upgradeToken(){
   const t=getToken(); if(!t) return null;
   try{
@@ -571,40 +556,20 @@ async function upgradeNow(){
   if(t){ saveToken(t); log2('✅ 已升级为 4 天长效 Token'); mintQr(); }
   else log2('⚠️ 升级失败（可能已是长效，或 Token 已失效）');
 }
-async function pasteToken(){
-  const t=document.getElementById('pasteTok').value.trim();
-  if(!t||!t.startsWith('eyJ')){ plog('格式不像 JWT Token'); return; }
-  saveToken(t); plog('<span class="pulse"></span>正在校验并升级…');
-  if(!isLong()){
-    const u=await upgradeToken();
-    if(u){ saveToken(u); plog('✅ 已保存并升级为 4 天长效 Token'); }
-    else plog('⚠️ 已保存，但升级失败（Token 可能已过期）');
-  } else plog('✅ 已保存 4 天长效 Token');
-  await refreshPoints();
-  mintQr();
-}
-
 /* ================= 官方二维码铸造 + 断点续接 ================= */
 let CUR_SCENE=null, QR_GEN=0, qrTimer=null, gotTok=false;
 
 function saveScene(sid, img, ttl){
-  try{ localStorage.setItem(LS_SCENE, JSON.stringify({sid:sid, img:img, ts:Date.now(), ttl:ttl||50})); }catch(e){}
+  try{ localStorage.setItem(sceneKey(), JSON.stringify({sid:sid, img:img, ts:Date.now(), ttl:ttl||50})); }catch(e){}
 }
 function loadScene(){
-  try{ const s=JSON.parse(localStorage.getItem(LS_SCENE)); if(s&&s.sid&&s.img) return s; }catch(e){}
+  try{ const s=JSON.parse(localStorage.getItem(sceneKey())); if(s&&s.sid&&s.img) return s; }catch(e){}
   return null;
 }
-function clearScene(){ try{ localStorage.removeItem(LS_SCENE); }catch(e){} }
+function clearScene(){ try{ localStorage.removeItem(sceneKey()); }catch(e){} }
 
 function maskShow(html){ const m=document.getElementById('qrMask'); m.style.display='flex'; m.innerHTML=html; }
 function maskHide(){ document.getElementById('qrMask').style.display='none'; }
-
-async function tryBootstrap(){
-  if(!BOOTSTRAP || !BOOTSTRAP.startsWith('eyJ')) return false;
-  TOK_SRC='内置'; saveToken(BOOTSTRAP);
-  if(!isLong()){ const u=await upgradeToken(); if(u) saveToken(u); }
-  return getToken() && tokRemain()>0;
-}
 
 async function tryMint(token){
   const sid=String(Date.now());
@@ -637,21 +602,18 @@ async function tryMint(token){
 }
 
 async function mintQr(){
-  if(!getToken() || tokRemain()<=0){ await tryBootstrap(); }
-  maskShow('正在铸造官方二维码…');
-  let res = (getToken() && tokRemain()>0) ? await tryMint(getToken()) : {ok:false, err:'无有效 Token'};
-
-  if(!res.ok && !res.stale){
-    log2('<span class="pulse"></span>铸造失败，自动切换内置 Token 重试…');
-    if(await tryBootstrap()){
-      maskShow('正在用内置 Token 重铸…');
-      res = await tryMint(getToken());
-    }
+  // 铸码 token：优先当前账号自己的长效 token，否则用内置引导 token（仅用于铸码，不写入账号 token）
+  let mintTok = getToken();
+  if(!mintTok || tokRemain() <= 0){
+    mintTok = (BOOTSTRAP && BOOTSTRAP.startsWith('eyJ')) ? BOOTSTRAP : '';
   }
+  maskShow('正在铸造官方二维码…');
+  let res = mintTok ? await tryMint(mintTok) : {ok:false, err:'无可用 Token'};
+
   if(!res.ok && !res.stale){
     setDiag('❌ 铸造失败');
     maskShow('铸造失败<br><span class="muted">'+res.err+'</span>'
-      +'<div style="margin-top:10px;font-size:12px;color:#58a6ff">已自动用内置 Token 重试仍失败，请把上面这一行错误发我</div>');
+      +'<div style="margin-top:10px;font-size:12px;color:#58a6ff">请把上面这一行错误发我</div>');
   }
 }
 
@@ -681,6 +643,7 @@ function startQrPoll(sid, gen){
 }
 
 async function handleNewToken(j){
+  TOK_SRC='扫码';
   saveToken(j.token);
   const up=await upgradeToken();
   if(up) saveToken(up);
@@ -744,11 +707,11 @@ async function refreshPoints(){
 }
 function loadState(){
   const today=new Date().toISOString().slice(0,10);
-  try{ const s=JSON.parse(localStorage.getItem(LS_STATE)); if(s&&s.date===today) return s; }catch(e){}
+  try{ const s=JSON.parse(localStorage.getItem(stateKey())); if(s&&s.date===today) return s; }catch(e){}
   return {date:today,liked:[],read:[],commented:[],shared:[]};
 }
-function saveState(s){ try{ localStorage.setItem(LS_STATE,JSON.stringify(s)); }catch(e){} }
-function clearState(){ localStorage.removeItem(LS_STATE); alert('已清除，刷新页面生效'); }
+function saveState(s){ try{ localStorage.setItem(stateKey(),JSON.stringify(s)); }catch(e){} }
+function clearState(){ localStorage.removeItem(stateKey()); alert('已清除，刷新页面生效'); }
 function log(s){ const el=document.getElementById('logArea'); el.style.display='block'; el.textContent+=s+'\n'; el.scrollTop=el.scrollHeight; }
 
 async function collect(){
@@ -943,7 +906,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v8 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v9 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }
@@ -952,29 +915,10 @@ async function boot(){
   updateChip(); fillTokBox();
   setInterval(updateChip,30000);
 
-  // 1) 优先从链接参数注入
-  const injected = await bootstrapFromUrl();
+  // 1) 优先从链接参数注入（管理员一键链接）
+  await bootstrapFromUrl();
 
-  // 2) 没有可用 Token → 自动载入内置引导 Token（并升级为 4 天）
-  if(getToken() && tokRemain() > 0 && TOK_SRC==='无') TOK_SRC='已存';
-  if(!getToken() || tokRemain() <= 0){
-    if(BOOTSTRAP && BOOTSTRAP.startsWith('eyJ')){
-      TOK_SRC='内置'; saveToken(BOOTSTRAP);
-      log2('<span class="pulse"></span>已自动载入内置 Token，正在启用…');
-      if(!isLong()){
-        const u = await upgradeToken();
-        if(u) saveToken(u);
-      }
-      const bi = jwtInfo(getToken());
-      if(bi && bi.exp > Date.now()){
-        log2('✅ 已启用内置 Token（'+(bi.name||'')+'）· 剩 '+Math.floor((bi.exp-Date.now())/3600000)+' 小时');
-      } else {
-        log2('⚠️ 内置 Token 已过期，请重新获取一个粘贴进来');
-      }
-    }
-  }
-
-  // 3) 断点续接：页面被切走后返回，沿用同一张二维码继续等结果
+  // 2) 断点续接：页面被切走后返回，沿用同一张二维码继续等结果
   if(getToken() && tokRemain()>0){
     const sc = loadScene();
     if(sc && Date.now()-sc.ts < (sc.ttl||50)*1000){

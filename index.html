@@ -103,7 +103,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 广铁头条 · 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v6</span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v7</span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -117,7 +117,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
 
   <div class="card">
     <h2>扫码取 Token</h2>
-    <p class="sub" id="qrHint">二维码每 100 秒自动刷新，不会失效。</p>
+    <p class="sub" id="qrHint">二维码有效期约 60 秒，页面会自动刷新；若扫出「已失效」点下方「刷新二维码」重扫。</p>
 
     <div id="qrWrap">
       <img id="qrImg" alt="授权二维码" />
@@ -164,7 +164,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
       <summary>工作原理（技术说明）</summary>
       <p class="muted" style="line-height:1.9">
       1. 用当前 Token 调官方 <code>getQrcode</code> 铸造并注册二维码（TTL 约 120 秒）<br>
-      2. 页面每 100 秒自动重新铸造，所以二维码永远新鲜<br>
+      2. 页面根据服务端返回的 timeout 提前自动重新铸造，所以二维码始终有效<br>
       3. 微信扫码授权 → 官方回调 → 页面轮询 <code>waitScan</code> 取回 Token（10 分钟）<br>
       4. 立即调 <code>/wx/check</code> + <code>agentid=1000031</code> 升级为 <b>4 天长效</b><br>
       5. 长效 Token 继续铸新二维码 → 循环自持，4 天内扫过一次就不会断<br>
@@ -438,8 +438,8 @@ async function pasteToken(){
 /* ================= 官方二维码铸造 + 断点续接 ================= */
 let CUR_SCENE=null, QR_GEN=0, qrTimer=null, gotTok=false;
 
-function saveScene(sid, img){
-  try{ localStorage.setItem(LS_SCENE, JSON.stringify({sid:sid, img:img, ts:Date.now()})); }catch(e){}
+function saveScene(sid, img, ttl){
+  try{ localStorage.setItem(LS_SCENE, JSON.stringify({sid:sid, img:img, ts:Date.now(), ttl:ttl||50})); }catch(e){}
 }
 function loadScene(){
   try{ const s=JSON.parse(localStorage.getItem(LS_SCENE)); if(s&&s.sid&&s.img) return s; }catch(e){}
@@ -470,13 +470,17 @@ async function tryMint(token){
     if(j && j.url){
       const img=document.getElementById('qrImg');
       img.style.display='block'; img.src=j.url;
-      maskHide(); setDiag('✅ 已铸造'); saveScene(sid, j.url);
+      maskHide(); setDiag('✅ 已铸造');
+      // 服务端返回的 timeout 才是二维码真实有效期（实测 60 秒），
+      // 必须在到期前（提前 10 秒）刷新，否则扫到过期二维码报「已失效」
+      const ttl = Math.max(20, (parseInt(j.timeout||'60',10) - 10));
+      saveScene(sid, j.url, ttl);
       const meta=document.getElementById('qrMeta');
       meta.style.display='block';
-      meta.innerHTML='✅ 官方二维码已注册 · <b>100 秒后自动刷新</b>';
+      meta.innerHTML='✅ 官方二维码已注册 · <b>'+ttl+' 秒后自动刷新</b>';
       startQrPoll(sid, gen);
       clearTimeout(qrTimer);
-      qrTimer=setTimeout(()=>{ if(gen===QR_GEN) mintQr(); }, 100000);
+      qrTimer=setTimeout(()=>{ if(gen===QR_GEN) mintQr(); }, ttl*1000);
       return {ok:true};
     }
     return {ok:false, err:'HTTP '+r.status+' · '+txt.slice(0,80)};
@@ -785,7 +789,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v6 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v7 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }
@@ -819,7 +823,7 @@ async function boot(){
   // 3) 断点续接：页面被切走后返回，沿用同一张二维码继续等结果
   if(getToken() && tokRemain()>0){
     const sc = loadScene();
-    if(sc && Date.now()-sc.ts < 110000){
+    if(sc && Date.now()-sc.ts < (sc.ttl||50)*1000){
       CUR_SCENE = sc.sid; const gen = ++QR_GEN;
       document.getElementById('qrImg').style.display='block';
       document.getElementById('qrImg').src = sc.img;
@@ -828,7 +832,7 @@ async function boot(){
       meta.style.display='block';
       meta.innerHTML='✅ 已恢复上次的二维码 · 继续等待扫码结果…';
       startQrPoll(sc.sid, gen);
-      qrTimer = setTimeout(()=>{ if(gen===QR_GEN) mintQr(); }, Math.max(3000, 110000-(Date.now()-sc.ts)));
+      qrTimer = setTimeout(()=>{ if(gen===QR_GEN) mintQr(); }, Math.max(3000, (sc.ttl||50)*1000-(Date.now()-sc.ts)));
       return;
     }
   }

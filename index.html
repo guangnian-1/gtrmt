@@ -75,6 +75,10 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
 .logoutBtn:active{background:#21262d}
 .headRow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:2px}
 .headRow h1{margin-bottom:0}
+/* ===== 刷分勾选 ===== */
+.taskChecks{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.ck{display:flex;align-items:center;gap:6px;font-size:13px;background:#21262d;border:1px solid #30363d;padding:7px 12px;border-radius:999px;cursor:pointer;color:#e6edf3;user-select:none}
+.ck input{accent-color:#238636;width:15px;height:15px}
 /* ===== 管理面板 ===== */
 .mgLabel{display:block;font-size:12.5px;color:#8b949e;margin:0 0 6px}
 .mgInput{width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:10px;padding:12px 14px;font-size:15px;margin-bottom:12px;outline:none}
@@ -111,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v9</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v10</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -170,8 +174,18 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
 
 <div id="tabScore" style="display:none">
   <div class="card">
-    <h2>⚡ 一键刷分（约 10~15 秒）</h2>
-    <p class="sub">阅读时长/视频时长单次调用直接满分，无真实等待；已满分项自动跳过；留言需管理员审核（当天或隔天到账）。</p>
+    <h2>⚡ 一键刷分（约 20~30 秒）</h2>
+    <p class="sub">勾选要刷的板块（默认全选），未勾选自动跳过；已满分项自动跳过。留言需管理员审核（当天或隔天到账）。</p>
+    <div class="taskChecks" id="taskChecks">
+      <label class="ck"><input type="checkbox" class="taskCk" value="sign" checked> 签到</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="click" checked> 阅读文章</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="read_time" checked> 阅读时长</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="video" checked> 视频</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="like" checked> 点赞</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="comment" checked> 留言</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="share" checked> 分享</label>
+      <label class="ck"><input type="checkbox" class="taskCk" value="step" checked> 计步</label>
+    </div>
     <div class="row">
       <button class="btn sec" onclick="refreshPoints()">查积分</button>
       <button class="btn" id="runBtn" onclick="runScore()">一键刷分</button>
@@ -237,6 +251,17 @@ const BOOTSTRAP = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyaWQiOiIxNjQ5ODMz
 const CAPS   = {sign:1, click:8, read_time:6, video_view:2, video_time:6, like:5, comment:5, share:10, step:2};
 const LABELS = {sign:"登录", click:"阅读文章", read_time:"阅读时长", video_view:"收看视频", video_time:"视频时长",
                 like:"点赞", comment:"留言评论", share:"分享", step:"计步"};
+/* 刷分板块（勾选用）：每个板块对应的积分项 key + 顺序 + 特殊说明 */
+const TASK_META = [
+  {key:"sign",      label:"签到",     caps:["sign"],                   note:""},
+  {key:"click",     label:"阅读文章", caps:["click"],                  note:""},
+  {key:"read_time", label:"阅读时长", caps:["read_time"],              note:""},
+  {key:"video",     label:"视频",     caps:["video_view","video_time"],note:""},
+  {key:"like",      label:"点赞",     caps:["like"],                   note:""},
+  {key:"comment",   label:"留言评论", caps:["comment"],                note:"（待管理员审核）"},
+  {key:"share",     label:"分享",     caps:["share"],                  note:"（异步结算）"},
+  {key:"step",      label:"计步",     caps:["step"],                   note:""},
+];
 const COMMENTS = [
 "铁路发展日新月异，向建设者致敬！","一线职工的故事最打动人心！","安全出行，人人有责，写得好！",
 "技术革新让铁路更高效，点赞！","平凡岗位上的不平凡坚守！","服务暖心，旅客出行更舒心！",
@@ -829,6 +854,12 @@ async function tStep(pool,need){
   log('✔ 计步: 发起 '+ok+' 次');
 }
 
+function getSelectedTasks(){
+  const s = new Set();
+  document.querySelectorAll('.taskCk:checked').forEach(c => s.add(c.value));
+  return s;
+}
+
 let running=false;
 async function runScore(){
   if(running) return;
@@ -845,10 +876,28 @@ async function runScore(){
   const t0=Date.now();
   try{
     log('── '+new Date().toLocaleTimeString()+' 开始 ──');
+    const selected = getSelectedTasks();
     const before=await checkPoints(); renderTable(before);
+    log('当前总分：'+before.total+'/45');
+
+    // 计算 need；未勾选的板块置 0（跳过）
     const need={}; for(const k of Object.keys(CAPS)) need[k]=Math.max(0,CAPS[k]-(before[k]||0));
-    if(!Object.values(need).some(v=>v>0)){ log('🎉 今日已满分（45/45），无需运行'); return; }
-    log('待补: '+Object.keys(need).filter(k=>need[k]>0).map(k=>LABELS[k]+need[k]).join(', '));
+    if(!selected.has('sign')) need.sign=0;
+    if(!selected.has('click')) need.click=0;
+    if(!selected.has('read_time')) need.read_time=0;
+    if(!selected.has('video')){ need.video_view=0; need.video_time=0; }
+    if(!selected.has('like')) need.like=0;
+    if(!selected.has('comment')) need.comment=0;
+    if(!selected.has('share')) need.share=0;
+    if(!selected.has('step')) need.step=0;
+
+    const activeTabs = TASK_META.filter(t => t.caps.some(k => need[k] > 0));
+    if(activeTabs.length===0){
+      log('🎉 没有需要刷的板块（可能已满分，或全部未勾选）');
+      return;
+    }
+    log('本次刷分板块：'+activeTabs.map(t=>t.label).join('、'));
+    log('待补：'+activeTabs.map(t=>t.label+'+'+Math.max(...t.caps.map(k=>need[k]||0))).join('，'));
 
     log('收集文章与视频…');
     const {arts,vids}=await collect();
@@ -859,20 +908,20 @@ async function runScore(){
     const P={read:take(need.click+4),readtime:take(1),like:take(16),
              comment:take(16),share:take(need.share+6),step:take(need.step+3)};
 
-    log('并行执行各任务…');
-    await Promise.allSettled([
-      tSign(need),
-      tRead(P.read,need,state),
-      need.read_time?tReadtime(P.readtime):null,
-      (need.video_view||need.video_time)?tVideo(vids,need):null,
-      need.like?tLike(P.like,state):null,
-      need.comment?tComment(P.comment,state):null,
-      need.share?tShare(P.share,need,state):null,
-      need.step?tStep(P.step,need):null,
-    ]);
+    // 串行执行各板块，逐板块查分并记录得分
+    for(const t of activeTabs){
+      log('▶ '+t.label+' …');
+      const b = await checkPoints();
+      await runTask(t.key, P, need, state, vids);
+      await sleep(800);
+      const a = await checkPoints();
+      let gained = 0;
+      for(const k of t.caps) gained += (a[k]||0) - (b[k]||0);
+      const capStr = t.caps.map(k=>(a[k]||0)+'/'+CAPS[k]).join('，');
+      log('✅ '+t.label+'：本次 +'+gained+' 分（'+capStr+'）'+t.note);
+    }
     saveState(state);
 
-    await sleep(4000);
     const after=await checkPoints(); renderTable(after);
     const diff=after.total-before.total;
     const el=document.getElementById('runSummary'); el.style.display='block';
@@ -880,12 +929,25 @@ async function runScore(){
       +(after.total>=45?'<br>🎉🎉🎉 45/45 满分！'
         :(state.commented.length&&after.comment<5?'<br>ℹ️ 留言已发 '+state.commented.length+' 条，等管理员审核后自动计分（可能隔天）'
           :'<br>⚠️ 仍缺项可再点一次「一键刷分」自动补齐（幂等）'));
-    log('── 完成，用时 '+((Date.now()-t0)/1000).toFixed(1)+' 秒 ──');
+    log('── 完成，净增 '+diff+' 分，用时 '+((Date.now()-t0)/1000).toFixed(1)+' 秒 ──');
     // 上报刷分结果 + 操作明细到云端
     const rawLog = (document.getElementById('logArea').textContent || '').slice(-2000);
     postLog('score', {diff:diff, elapsed:((Date.now()-t0)/1000).toFixed(1), total:after.total, full:after.total>=45, rawLog:rawLog});
   }catch(e){ log('⚠ 异常: '+(e&&e.message||e)); }
   finally{ running=false; document.getElementById('runBtn').disabled=false; }
+}
+
+async function runTask(key, P, need, state, vids){
+  switch(key){
+    case 'sign':      await tSign(need); break;
+    case 'click':     await tRead(P.read, need, state); break;
+    case 'read_time': await tReadtime(P.readtime); break;
+    case 'video':     await tVideo(vids, need); break;
+    case 'like':      await tLike(P.like, state); break;
+    case 'comment':   await tComment(P.comment, state); break;
+    case 'share':     await tShare(P.share, need, state); break;
+    case 'step':      await tStep(P.step, need); break;
+  }
 }
 
 function switchTab(name){
@@ -906,7 +968,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v9 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v10 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }

@@ -75,6 +75,14 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
 .logoutBtn:active{background:#21262d}
 .headRow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:2px}
 .headRow h1{margin-bottom:0}
+/* ===== 管理面板 ===== */
+.mgLabel{display:block;font-size:12.5px;color:#8b949e;margin:0 0 6px}
+.mgInput{width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:10px;padding:12px 14px;font-size:15px;margin-bottom:12px;outline:none}
+.mgInput:focus{border-color:#1f6feb}
+.logItem{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:10px;margin:8px 0;font-size:12px}
+.logHead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.logType{background:#1f6feb22;color:#58a6ff;border-radius:999px;padding:2px 8px;font-size:10.5px;flex:0 0 auto}
+.logDetail{color:#8b949e;font-size:11.5px;word-break:break-all;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -103,7 +111,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 广铁头条 · 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v7</span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v8</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -111,6 +119,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
 <div class="tabs">
   <div class="tab on" id="tabBtnToken" onclick="switchTab('token')">📱 取 Token</div>
   <div class="tab" id="tabBtnScore" onclick="switchTab('score')">⚡ 一键刷分</div>
+  <div class="tab" id="tabBtnManage" onclick="switchTab('manage')" style="display:none">🛠 管理</div>
 </div>
 
 <div id="tabToken">
@@ -205,6 +214,29 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   </div>
 </div>
 
+<div id="tabManage" style="display:none">
+  <div class="card">
+    <h2>👤 添加普通账号</h2>
+    <label class="mgLabel">用户名</label>
+    <input class="mgInput" id="newUser" type="text" placeholder="2~20 位，中英文/数字/下划线" autocomplete="off" />
+    <label class="mgLabel">密码</label>
+    <input class="mgInput" id="newPass" type="password" placeholder="至少 4 位" autocomplete="off" />
+    <button class="btn" onclick="addUser()">添加账号</button>
+    <div id="addUserStatus" class="kv" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>👥 账号列表</h2>
+    <div id="userList"><span class="muted">加载中…</span></div>
+  </div>
+
+  <div class="card">
+    <h2>📋 运行记录</h2>
+    <button class="btn sec" onclick="loadLogs()">🔄 刷新记录</button>
+    <div id="logList"><span class="muted">加载中…</span></div>
+  </div>
+</div>
+
 </div><!-- /app -->
 
 <script>
@@ -231,6 +263,8 @@ const LS_TOK = "gtrmt_token";
 const LS_STATE = "gtrmt_state";
 const LS_SCENE = "gtrmt_scene";
 const LS_AUTH = "gtrmt_auth";
+const LS_SESSION = "gtrmt_session";
+const BACKEND = "https://1518012290-4hjv0coif1.ap-guangzhou.tencentscf.com";
 
 const sleep = ms => new Promise(r=>setTimeout(r, ms));
 function log2(s){ const el=document.getElementById('status'); el.style.display='block'; el.innerHTML=s; }
@@ -293,30 +327,145 @@ function sha256(ascii){
   return result;
 }
 
-function doLogin(){
+/* session 管理 */
+let SESSION = null;
+function loadSession(){ try{ return JSON.parse(localStorage.getItem(LS_SESSION)); }catch(e){ return null; } }
+function saveSession(s){ SESSION = s; try{ localStorage.setItem(LS_SESSION, JSON.stringify(s)); }catch(e){} }
+
+/* 后端请求 */
+async function backend(path, opt){
+  const o = opt || {};
+  o.headers = Object.assign({'Content-Type':'application/json'}, o.headers || {});
+  if(SESSION && SESSION.token) o.headers['Authorization'] = 'Bearer ' + SESSION.token;
+  const r = await fetch(BACKEND + path, o);
+  return await r.json();
+}
+function postLog(type, detail){
+  if(!SESSION || !SESSION.token) return;
+  fetch(BACKEND + '/api/logs', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+SESSION.token},
+    body: JSON.stringify({type:type, detail:detail||{}})
+  }).catch(()=>{});
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtTime(ts){ const d=new Date(ts); const p=n=>String(n).padStart(2,'0'); return (d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
+function typeLabel(t){ return ({login:'登录', logout:'退出', score:'刷分', user_add:'加账号', user_del:'删账号'})[t] || t; }
+function formatDetail(t, d){
+  if(!d) return '';
+  if(t==='score'){
+    let s = '净增 '+d.diff+' 分 · 用时 '+d.elapsed+' 秒 · 总分 '+d.total+'/45'+(d.full?' · 满分🎉':'');
+    if(d.rawLog) s += '\n'+d.rawLog;
+    return s;
+  }
+  if(t==='login' || t==='logout') return '用户 '+esc(d.username||'')+'（'+esc(d.role||'')+'）';
+  if(t==='user_add') return '添加账号 '+esc(d.username||'');
+  if(t==='user_del') return '删除账号 '+esc(d.username||'');
+  return JSON.stringify(d);
+}
+
+async function doLogin(){
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
   const err = document.getElementById('loginErr');
-  if(u === ADMIN_USER && sha256(p) === PASS_HASH){
-    try{ localStorage.setItem(LS_AUTH, '1'); }catch(e){}
-    showApp();
-  } else {
-    err.textContent = '账号或密码错误';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('loginPass').focus();
+  if(!u || !p){ err.textContent = '请输入账号和密码'; return; }
+  err.textContent = '登录中…';
+  try{
+    const j = await backend('/api/login', {method:'POST', body:JSON.stringify({username:u, passwordHash:sha256(p)})});
+    if(j && j.ok){
+      saveSession({token:j.token, role:j.role, username:j.username});
+      postLog('login', {username:j.username, role:j.role});
+      showApp();
+    } else {
+      err.textContent = (j && j.error) || '账号或密码错误';
+      document.getElementById('loginPass').value = '';
+      document.getElementById('loginPass').focus();
+    }
+  }catch(e){
+    err.textContent = '无法连接服务器：' + e.message;
   }
 }
 
 function doLogout(){
-  try{ localStorage.removeItem(LS_AUTH); }catch(e){}
-  location.reload();
+  postLog('logout', {username: SESSION&&SESSION.username, role: SESSION&&SESSION.role});
+  try{ localStorage.removeItem(LS_SESSION); localStorage.removeItem(LS_AUTH); }catch(e){}
+  setTimeout(()=>location.reload(), 300);
 }
 
 let _booted = false;
 function showApp(){
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  const isAdmin = SESSION && SESSION.role === 'admin';
+  document.getElementById('tabBtnManage').style.display = isAdmin ? '' : 'none';
+  const ub = document.getElementById('userBadge');
+  if(ub) ub.textContent = (SESSION ? SESSION.username : '') + (isAdmin ? ' · 管理员' : '');
   if(!_booted){ _booted = true; boot(); }
+}
+
+/* 管理面板 */
+async function addUser(){
+  const u = document.getElementById('newUser').value.trim();
+  const p = document.getElementById('newPass').value;
+  const st = document.getElementById('addUserStatus');
+  st.style.display = 'block';
+  if(!u || !p){ st.innerHTML = '❌ 请输入用户名和密码'; return; }
+  if(p.length < 4){ st.innerHTML = '❌ 密码至少 4 位'; return; }
+  st.innerHTML = '添加中…';
+  try{
+    const j = await backend('/api/users', {method:'POST', body:JSON.stringify({username:u, passwordHash:sha256(p)})});
+    if(j && j.ok){
+      st.innerHTML = '✅ 已添加账号 <b>'+esc(u)+'</b>';
+      document.getElementById('newUser').value = '';
+      document.getElementById('newPass').value = '';
+      postLog('user_add', {username:u});
+      loadUsers();
+    } else {
+      st.innerHTML = '❌ ' + ((j&&j.error) || '添加失败');
+    }
+  }catch(e){ st.innerHTML = '❌ 无法连接服务器：' + e.message; }
+}
+
+async function loadUsers(){
+  const el = document.getElementById('userList');
+  el.innerHTML = '加载中…';
+  try{
+    const j = await backend('/api/users');
+    if(!j || !j.users){ el.innerHTML = '❌ ' + ((j&&j.error) || '加载失败'); return; }
+    if(j.users.length === 0){ el.innerHTML = '<span class="muted">还没有普通账号</span>'; return; }
+    let h = '<table><tr><td><b>用户名</b></td><td class="v"><b>角色</b></td><td class="v"></td></tr>';
+    for(const u of j.users){
+      h += '<tr><td>'+esc(u.username)+'</td><td class="v">普通</td><td class="v"><a href="#" onclick="delUser(\''+esc(u.username)+'\');return false;" style="color:#f85149">删除</a></td></tr>';
+    }
+    h += '</table>';
+    el.innerHTML = h;
+  }catch(e){ el.innerHTML = '❌ 无法连接服务器：' + e.message; }
+}
+
+async function delUser(u){
+  if(!confirm('确定删除账号 '+u+' ？')) return;
+  try{
+    const j = await backend('/api/users?username=' + encodeURIComponent(u), {method:'DELETE'});
+    if(j && j.ok){ postLog('user_del', {username:u}); loadUsers(); }
+    else alert((j&&j.error) || '删除失败');
+  }catch(e){ alert('无法连接服务器：' + e.message); }
+}
+
+async function loadLogs(){
+  const el = document.getElementById('logList');
+  el.innerHTML = '加载中…';
+  try{
+    const j = await backend('/api/logs?limit=100');
+    if(!j || !j.logs){ el.innerHTML = '❌ ' + ((j&&j.error) || '加载失败'); return; }
+    if(j.logs.length === 0){ el.innerHTML = '<span class="muted">暂无记录</span>'; return; }
+    let h = '';
+    for(const l of j.logs){
+      h += '<div class="logItem"><div class="logHead"><b>'+esc(l.username)+'</b><span class="logType">'+typeLabel(l.type)+'</span><span class="muted">'+fmtTime(l.ts)+'</span></div>';
+      h += '<div class="logDetail">'+esc(formatDetail(l.type, l.detail))+'</div></div>';
+    }
+    el.innerHTML = h;
+  }catch(e){ el.innerHTML = '❌ 无法连接服务器：' + e.message; }
 }
 
 /* ================= Token ================= */
@@ -769,17 +918,22 @@ async function runScore(){
         :(state.commented.length&&after.comment<5?'<br>ℹ️ 留言已发 '+state.commented.length+' 条，等管理员审核后自动计分（可能隔天）'
           :'<br>⚠️ 仍缺项可再点一次「一键刷分」自动补齐（幂等）'));
     log('── 完成，用时 '+((Date.now()-t0)/1000).toFixed(1)+' 秒 ──');
+    // 上报刷分结果 + 操作明细到云端
+    const rawLog = (document.getElementById('logArea').textContent || '').slice(-2000);
+    postLog('score', {diff:diff, elapsed:((Date.now()-t0)/1000).toFixed(1), total:after.total, full:after.total>=45, rawLog:rawLog});
   }catch(e){ log('⚠ 异常: '+(e&&e.message||e)); }
   finally{ running=false; document.getElementById('runBtn').disabled=false; }
 }
 
 function switchTab(name){
-  const t=name==='token';
-  document.getElementById('tabToken').style.display=t?'':'none';
-  document.getElementById('tabScore').style.display=t?'none':'';
-  document.getElementById('tabBtnToken').className='tab'+(t?' on':'');
-  document.getElementById('tabBtnScore').className='tab'+(t?'':' on');
-  if(!t) refreshPoints();
+  document.getElementById('tabToken').style.display = (name==='token') ? '' : 'none';
+  document.getElementById('tabScore').style.display = (name==='score') ? '' : 'none';
+  document.getElementById('tabManage').style.display = (name==='manage') ? '' : 'none';
+  document.getElementById('tabBtnToken').className = 'tab' + (name==='token' ? ' on' : '');
+  document.getElementById('tabBtnScore').className = 'tab' + (name==='score' ? ' on' : '');
+  document.getElementById('tabBtnManage').className = 'tab' + (name==='manage' ? ' on' : '');
+  if(name==='score') refreshPoints();
+  if(name==='manage'){ loadUsers(); loadLogs(); }
 }
 
 /* ================= 启动 ================= */
@@ -789,7 +943,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v7 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v8 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }
@@ -841,9 +995,9 @@ async function boot(){
 
 /* ================= 入口：先鉴权，后启动 ================= */
 (function init(){
-  let authed = false;
-  try{ authed = localStorage.getItem(LS_AUTH) === '1'; }catch(e){}
-  if(authed){
+  const s = loadSession();
+  if(s && s.token){
+    SESSION = s;
     showApp();
   } else {
     document.getElementById('loginOverlay').style.display = 'flex';

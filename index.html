@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>广铁头条 · 工具箱</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",Arial,sans-serif;
+     background:#0e1116;color:#e6edf3;padding:18px 14px 60px;line-height:1.6}
+.card{background:#161b22;border:1px solid #21262d;border-radius:14px;padding:18px;margin-bottom:14px}
+h1{font-size:18px;margin:0 0 4px;font-weight:600}
+h2{font-size:15px;margin:0 0 10px;font-weight:600}
+.sub{color:#8b949e;font-size:12.5px;margin:0 0 12px}
+.btn{display:block;width:100%;padding:13px 16px;border-radius:10px;border:0;font-size:15px;
+     font-weight:600;background:#238636;color:#fff;margin:10px 0;cursor:pointer;text-align:center;text-decoration:none}
+.btn:active{opacity:.85}
+.btn.sec{background:#21262d;color:#e6edf3}
+.btn.blue{background:#1f6feb}
+.btn:disabled{opacity:.45;cursor:default}
+textarea{width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:8px;
+         padding:11px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;
+         line-height:1.5;resize:vertical;word-break:break-all;min-height:70px}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;
+       background:#1f6feb33;color:#58a6ff;margin:2px 4px 2px 0}
+.badge.ok{background:#23863633;color:#3fb950}
+.badge.err{background:#da363333;color:#f85149}
+.kv{font-size:11.5px;color:#8b949e;font-family:ui-monospace,Menlo,monospace;
+    background:#0d1117;padding:10px;border-radius:8px;margin:8px 0;word-break:break-all}
+.kv b{color:#e6edf3}
+.muted{color:#6e7681;font-size:12px}
+.row{display:flex;gap:10px}.row .btn{margin:6px 0;flex:1}
+#qrWrap{background:#fff;border-radius:12px;padding:10px;width:230px;height:230px;margin:12px auto;
+        display:flex;align-items:center;justify-content:center;position:relative}
+#qrImg{width:100%;height:100%;display:block;object-fit:contain}
+.qrMask{position:absolute;inset:0;background:#0d1117ee;border-radius:12px;display:flex;
+        flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#e6edf3;font-size:13px;text-align:center;padding:16px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{flex:1;text-align:center;padding:11px 8px;border-radius:10px;background:#161b22;
+     border:1px solid #21262d;font-size:14px;font-weight:600;color:#8b949e;cursor:pointer}
+.tab.on{background:#1f6feb22;border-color:#1f6feb;color:#58a6ff}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+td{padding:5px 4px;border-bottom:1px solid #21262d}
+td.v{text-align:right;font-family:ui-monospace,Menlo,monospace}
+.bar{color:#3fb950;letter-spacing:-1px}
+#logArea{background:#0d1117;border:1px solid #21262d;border-radius:8px;padding:10px;
+         font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.7;
+         max-height:260px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;display:none}
+.pulse{width:8px;height:8px;border-radius:50%;background:#3fb950;display:inline-block;margin-right:6px;animation:p 1.2s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+.chip{display:flex;align-items:center;gap:8px;font-size:12px;color:#8b949e;margin-bottom:12px;
+      background:#161b22;border:1px solid #21262d;border-radius:999px;padding:7px 14px}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
+.warnBox{background:#bb80091a;border:1px solid #bb8009;border-radius:10px;padding:12px;font-size:12.5px;margin:10px 0}
+.step{display:flex;gap:10px;align-items:flex-start;margin:9px 0;font-size:13px}
+.step .n{flex:0 0 22px;height:22px;border-radius:50%;background:#21262d;color:#e6edf3;
+        display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+/* ===== 登录界面 ===== */
+#loginOverlay{position:fixed;inset:0;background:#0e1116;z-index:999;display:flex;flex-direction:column;
+              align-items:center;justify-content:center;padding:24px;overflow:auto}
+.login-card{width:100%;max-width:380px;background:#161b22;border:1px solid #21262d;border-radius:16px;
+            padding:30px 24px 26px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.login-logo{font-size:42px;text-align:center;margin-bottom:8px}
+.login-card h1{text-align:center;font-size:20px;margin-bottom:2px}
+.login-card .sub{text-align:center;margin-bottom:22px}
+.login-card label{display:block;font-size:12.5px;color:#8b949e;margin:0 0 6px}
+.login-card input{width:100%;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:10px;
+                  padding:13px 14px;font-size:15px;margin-bottom:14px;outline:none}
+.login-card input:focus{border-color:#1f6feb}
+.login-card .btn{margin:8px 0 0}
+#loginErr{color:#f85149;font-size:12.5px;text-align:center;min-height:18px;margin:12px 0 0}
+.logoutBtn{background:transparent;border:1px solid #30363d;color:#8b949e;border-radius:8px;padding:6px 13px;
+           font-size:12px;cursor:pointer;flex:0 0 auto}
+.logoutBtn:active{background:#21262d}
+.headRow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:2px}
+.headRow h1{margin-bottom:0}
+</style>
+</head>
+<body>
+
+<!-- ==================== 登录界面 ==================== -->
+<div id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">🔐</div>
+    <h1>广铁头条 · 工具箱</h1>
+    <p class="sub">管理员登录</p>
+    <form onsubmit="doLogin();return false;">
+      <label for="loginUser">账号</label>
+      <input id="loginUser" type="text" placeholder="请输入管理员账号" autocomplete="username" />
+      <label for="loginPass">密码</label>
+      <input id="loginPass" type="password" placeholder="请输入密码" autocomplete="current-password" />
+      <button type="submit" class="btn blue">登 录</button>
+    </form>
+    <p id="loginErr"></p>
+  </div>
+</div>
+
+<!-- ==================== 主应用 ==================== -->
+<div id="app" style="display:none">
+
+<div class="headRow">
+  <h1>🧰 广铁头条 · 工具箱</h1>
+  <button class="logoutBtn" onclick="doLogout()">退出登录</button>
+</div>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v6</span></p>
+
+<div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
+<div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
+
+<div class="tabs">
+  <div class="tab on" id="tabBtnToken" onclick="switchTab('token')">📱 取 Token</div>
+  <div class="tab" id="tabBtnScore" onclick="switchTab('score')">⚡ 一键刷分</div>
+</div>
+
+<div id="tabToken">
+
+  <div class="card">
+    <h2>扫码取 Token</h2>
+    <p class="sub" id="qrHint">二维码每 100 秒自动刷新，不会失效。</p>
+
+    <div id="qrWrap">
+      <img id="qrImg" alt="授权二维码" />
+      <div class="qrMask" id="qrMask">正在生成官方二维码…</div>
+    </div>
+
+    <div id="qrMeta" class="kv" style="text-align:center;display:none"></div>
+    <button class="btn sec" onclick="mintQr()" id="qrRefreshBtn">🔄 刷新二维码</button>
+    <p class="muted" style="text-align:center">
+      在微信里<b>长按上方二维码 → 识别图中二维码</b> → 确认授权<br>
+      授权完<b>按返回键回到本页</b>，Token 会自动出现并升级为 <b>4 天长效</b>
+    </p>
+    <div id="status" class="kv" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>✅ 当前 Token</h2>
+    <div id="tokInfo" class="kv">尚未获取</div>
+    <textarea id="tokBox" readonly placeholder="获取后自动填入"></textarea>
+    <div class="row">
+      <button class="btn" onclick="copyTok()">复制 Token</button>
+      <button class="btn sec" onclick="upgradeNow()">升级为4天</button>
+    </div>
+    <p class="muted">Token 存在本页（localStorage），切到「一键刷分」直接用。每扫一次自动续 4 天。</p>
+  </div>
+
+  <div class="card">
+    <h2>首次注入 Token（只做一次）</h2>
+    <div class="warnBox">
+      <b>为什么要注入？</b>官方二维码必须由服务端注册后才可扫（否则提示失效），
+      而注册需要一个有效 Token。<b>注入一次之后，这条链就自持了</b>——之后每次扫码都会自动续 4 天，再也不用注入。
+    </div>
+    <div class="step"><div class="n">1</div><div>复制下面这段 Token（或让助手给你一个<b>带参数的一键链接</b>，点开即自动注入）</div></div>
+    <textarea id="pasteTok" placeholder="eyJhbGciOiJIUzI1NiIs…（400 字符）" style="min-height:64px"></textarea>
+    <button class="btn" onclick="pasteToken()">保存并启用</button>
+    <div id="pasteStatus" class="kv" style="display:none"></div>
+    <p class="muted" style="margin-top:10px">
+      提示：如果链接里带了 <code>?t=</code> 参数，打开时会<b>自动注入并清除参数</b>，无需任何操作。
+    </p>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>工作原理（技术说明）</summary>
+      <p class="muted" style="line-height:1.9">
+      1. 用当前 Token 调官方 <code>getQrcode</code> 铸造并注册二维码（TTL 约 120 秒）<br>
+      2. 页面每 100 秒自动重新铸造，所以二维码永远新鲜<br>
+      3. 微信扫码授权 → 官方回调 → 页面轮询 <code>waitScan</code> 取回 Token（10 分钟）<br>
+      4. 立即调 <code>/wx/check</code> + <code>agentid=1000031</code> 升级为 <b>4 天长效</b><br>
+      5. 长效 Token 继续铸新二维码 → 循环自持，4 天内扫过一次就不会断<br>
+      6. 扫码时本页被切走也没关系：二维码与 sceneid 会暂存，返回后自动续接取回 Token
+      </p>
+    </details>
+  </div>
+</div>
+
+<div id="tabScore" style="display:none">
+  <div class="card">
+    <h2>⚡ 一键刷分（约 10~15 秒）</h2>
+    <p class="sub">阅读时长/视频时长单次调用直接满分，无真实等待；已满分项自动跳过；留言需管理员审核（当天或隔天到账）。</p>
+    <div class="row">
+      <button class="btn sec" onclick="refreshPoints()">查积分</button>
+      <button class="btn" id="runBtn" onclick="runScore()">一键刷分</button>
+    </div>
+    <div id="scoreHint" class="kv" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>积分明细</h2>
+    <div id="ptsTable">点「查积分」查看当前状态</div>
+    <div class="kv" id="runSummary" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>运行日志</h2>
+    <div id="logArea"></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>高级 · 本地状态</summary>
+      <p class="muted">点赞防翻转：本页记录当日已赞/已读/已评/已分享的文章，重跑自动跳过。</p>
+      <button class="btn sec" onclick="clearState()">清除当日状态（慎用）</button>
+    </details>
+  </div>
+</div>
+
+</div><!-- /app -->
+
+<script>
+/* ================= 常量 ================= */
+const API2  = "https://ali.gtrmt.cn:8893";
+const API5  = "https://ali.gtrmt.cn:8895";
+const AGENT = "1000031";
+const PROD  = "https://mgt.gtrmt.cn";
+
+/* 内置引导 Token（4 天长效，首次打开自动载入；扫码一次后即由你自己的新 Token 取代） */
+const BOOTSTRAP = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyaWQiOiIxNjQ5ODMzMjM4NjI3MjAwN2ZiYzhkNWEzOWE1NDM5NmYwNjc3Y2VmY2ZiMDFmZmQ4MWZiN2RkIiwibmFtZSI6IumZiOW_l-iIqiIsIm1vYmlsZSI6IjE1MTE1MzMyNTk3IiwiYXZhdGFyIjoiaHR0cHM6Ly93ZXdvcmsucXBpYy5jbi93d3BpYy8xNjYyODFfeVp2SjIzYVFUY2ltaklVXzE2ODA1ODA4NTQvMCIsImRlcGFydG1lbnQiOlsxMzBdLCJpYXQiOjE3OTMwNjkzODQsImV4cCI6MTc5MzQxNDk4NH0.D4ZXd39lU3YrP7faQBPXUS6V2yoCBzR_TZIgYOW19P4";
+
+const CAPS   = {sign:1, click:8, read_time:6, video_view:2, video_time:6, like:5, comment:5, share:10, step:2};
+const LABELS = {sign:"登录", click:"阅读文章", read_time:"阅读时长", video_view:"收看视频", video_time:"视频时长",
+                like:"点赞", comment:"留言评论", share:"分享", step:"计步"};
+const COMMENTS = [
+"铁路发展日新月异，向建设者致敬！","一线职工的故事最打动人心！","安全出行，人人有责，写得好！",
+"技术革新让铁路更高效，点赞！","平凡岗位上的不平凡坚守！","服务暖心，旅客出行更舒心！",
+"读完深感振奋，继续加油！","铁路精神薪火相传，令人敬佩！","细节之处见真章，好报道！",
+"奋斗的青春最美丽，共勉！","智慧铁路建设成果喜人！","保通保畅，功不可没！",
+"工匠精神值得每个人学习！","新征程新气象，未来可期！","为默默奉献的铁路人鼓掌！"];
+
+const LS_TOK = "gtrmt_token";
+const LS_STATE = "gtrmt_state";
+const LS_SCENE = "gtrmt_scene";
+const LS_AUTH = "gtrmt_auth";
+
+const sleep = ms => new Promise(r=>setTimeout(r, ms));
+function log2(s){ const el=document.getElementById('status'); el.style.display='block'; el.innerHTML=s; }
+function plog(s){ const el=document.getElementById('pasteStatus'); el.style.display='block'; el.innerHTML=s; }
+
+/* ================= 登录鉴权 ================= */
+/* 密码 hanghang 的 SHA-256（源码里不存明文） */
+const PASS_HASH = "e883ead47b48f77229038a6ea1133a0415d0b054bcb43967bdc09e7881d40d99";
+const ADMIN_USER = "admin";
+
+function sha256(ascii){
+  function rightRotate(v,a){ return (v>>>a)|(v<<(32-a)); }
+  var mathPow=Math.pow, maxWord=mathPow(2,32), result='';
+  var words=[], asciiBitLength=ascii.length*8;
+  var hash=sha256.h=sha256.h||[], k=sha256.k=sha256.k||[], primeCounter=k.length;
+  var isComposite={};
+  for(var candidate=2; primeCounter<64; candidate++){
+    if(!isComposite[candidate]){
+      for(var i=0;i<313;i+=candidate) isComposite[i]=candidate;
+      hash[primeCounter]=(mathPow(candidate,0.5)*maxWord)|0;
+      k[primeCounter++]=(mathPow(candidate,1/3)*maxWord)|0;
+    }
+  }
+  ascii += '\x80';
+  while(ascii.length%64-56) ascii += '\x00';
+  for(var i=0;i<ascii.length;i++){
+    var j=ascii.charCodeAt(i);
+    if(j>>8) return '';
+    words[i>>2]|=j<<((3-i)%4)*8;
+  }
+  words[words.length]=((asciiBitLength/maxWord)|0);
+  words[words.length]=(asciiBitLength);
+  for(var j=0;j<words.length;){
+    var w=words.slice(j,j+=16), oldHash=hash;
+    hash=hash.slice(0,8);
+    for(var i=0;i<64;i++){
+      var w15=w[i-15], w2=w[i-2];
+      var a=hash[0], e=hash[4];
+      var temp1=hash[7]
+        +(rightRotate(e,6)^rightRotate(e,11)^rightRotate(e,25))
+        +((e&hash[5])^((~e)&hash[6]))
+        +k[i]
+        +(w[i]=(i<16)?w[i]:(w[i-16]
+          +(rightRotate(w15,7)^rightRotate(w15,18)^(w15>>>3))
+          +w[i-7]
+          +(rightRotate(w2,17)^rightRotate(w2,19)^(w2>>>10)))|0);
+      var temp2=(rightRotate(a,2)^rightRotate(a,13)^rightRotate(a,22))
+        +((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash=[(temp1+temp2)|0].concat(hash);
+      hash[4]=(hash[4]+temp1)|0;
+    }
+    for(var i=0;i<8;i++) hash[i]=(hash[i]+oldHash[i])|0;
+  }
+  for(var i=0;i<8;i++){
+    for(var j=3;j+1;j--){
+      var b=(hash[i]>>(j*8))&255;
+      result+=((b<16)?0:'')+b.toString(16);
+    }
+  }
+  return result;
+}
+
+function doLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  if(u === ADMIN_USER && sha256(p) === PASS_HASH){
+    try{ localStorage.setItem(LS_AUTH, '1'); }catch(e){}
+    showApp();
+  } else {
+    err.textContent = '账号或密码错误';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+function doLogout(){
+  try{ localStorage.removeItem(LS_AUTH); }catch(e){}
+  location.reload();
+}
+
+let _booted = false;
+function showApp(){
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  if(!_booted){ _booted = true; boot(); }
+}
+
+/* ================= Token ================= */
+function getToken(){ try{ return localStorage.getItem(LS_TOK)||""; }catch(e){ return ""; } }
+function saveToken(t){ try{ localStorage.setItem(LS_TOK,t); }catch(e){} updateChip(); fillTokBox(); if(typeof setDiag==='function') setDiag('处理中…'); }
+function jwtInfo(t){
+  try{
+    const b=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    const p=JSON.parse(decodeURIComponent(escape(atob(b))));
+    return {name:p.name, exp:(p.exp||0)*1000, iat:(p.iat||0)*1000};
+  }catch(e){ return null; }
+}
+function tokRemain(){ const t=getToken(); if(!t) return -1; const i=jwtInfo(t); return i?Math.floor((i.exp-Date.now())/1000):-1; }
+function isLong(){ const i=jwtInfo(getToken()); return i?(i.exp-i.iat)>=86400000:false; }
+
+function updateChip(){
+  const chip=document.getElementById('tokChip'), txt=document.getElementById('tokChipText');
+  const dot=chip.querySelector('.dot'); const rem=tokRemain();
+  if(!getToken()){ dot.style.background='#f85149'; txt.textContent='未获取 Token'; return; }
+  if(rem<=0){ dot.style.background='#f85149'; txt.textContent='Token 已过期，请重新扫码'; return; }
+  const i=jwtInfo(getToken()); const len=isLong()?'4天长效':'短Token';
+  if(rem<3600){ dot.style.background='#d29922'; txt.textContent=(i.name||'')+' · '+len+' · 剩 '+Math.ceil(rem/60)+' 分钟'; }
+  else{ dot.style.background='#3fb950'; txt.textContent=(i.name||'')+' · '+len+' · 剩 '+Math.floor(rem/3600)+'h'+Math.ceil((rem%3600)/60)+'m'; }
+}
+function fillTokBox(){
+  const t=getToken();
+  document.getElementById('tokBox').value=t;
+  if(!t){ document.getElementById('tokInfo').innerHTML='尚未获取'; return; }
+  const i=jwtInfo(t), rem=tokRemain();
+  document.getElementById('tokInfo').innerHTML=
+    '<b>用户</b> '+(i&&i.name||'?')+' &nbsp; <b>类型</b> '+(isLong()?'4天长效 ✅':'短Token（建议升级）')+
+    '<br><b>剩余</b> '+(rem>0?(rem>3600?Math.floor(rem/3600)+' 小时 '+Math.ceil((rem%3600)/60)+' 分':Math.ceil(rem/60)+' 分钟'):'已过期');
+}
+function copyTok(){
+  const v=document.getElementById('tokBox').value;
+  if(!v){ alert('还没有 Token'); return; }
+  navigator.clipboard.writeText(v).then(()=>alert('已复制')).catch(()=>{
+    document.getElementById('tokBox').select(); document.execCommand('copy'); alert('已复制'); });
+}
+
+/* ================= 从 URL 参数自动注入（一键链接） ================= */
+function readUrlToken(){
+  const srcs=[];
+  try{ srcs.push(window.parent.location.search||''); }catch(e){}
+  try{ srcs.push(window.parent.location.hash||''); }catch(e){}
+  try{ srcs.push(location.search||''); }catch(e){}
+  try{ srcs.push(location.hash||''); }catch(e){}
+  for(const s of srcs){
+    if(!s) continue;
+    const m = s.match(/[?&#]t=([^&]+)/);
+    if(m){ try{ return decodeURIComponent(m[1]); }catch(e){ return m[1]; } }
+  }
+  return null;
+}
+function stripUrlToken(){
+  try{
+    const u = new URL(window.parent.location.href);
+    if(u.searchParams.has('t')){
+      u.searchParams.delete('t');
+      window.parent.history.replaceState({}, '', u.pathname + u.search + u.hash);
+    }
+  }catch(e){}
+  try{
+    const u2 = new URL(location.href);
+    if(u2.searchParams.has('t')){
+      u2.searchParams.delete('t'); u2.hash='';
+      history.replaceState({}, '', u2.pathname + u2.search);
+    }
+  }catch(e){}
+}
+
+async function bootstrapFromUrl(){
+  const t = readUrlToken();
+  if(!t || !t.startsWith('eyJ')) return false;
+  TOK_SRC='链接注入'; saveToken(t);
+  stripUrlToken();
+  log2('<span class="pulse"></span>已从链接自动注入 Token，正在启用…');
+  if(!isLong()){
+    const u = await upgradeToken();
+    if(u) saveToken(u);
+  }
+  const i=jwtInfo(getToken());
+  log2('✅ 已启用 '+(i&&i.name||'')+' · '+(isLong()?'4天长效 Token':'Token')+'，切到「一键刷分」即可用');
+  return true;
+}
+
+/* ================= 升级 4 天 / 手动粘贴 ================= */
+async function upgradeToken(){
+  const t=getToken(); if(!t) return null;
+  try{
+    const r=await fetch(API5+"/wx/check",{method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+t},
+      body:JSON.stringify({url:"https://ali.gtrmt.cn:8891/?sceneid=1&path=toutiao",usercode:"",agentid:AGENT})});
+    const j=await r.json();
+    if(j&&j.token) return j.token;
+  }catch(e){}
+  return null;
+}
+async function upgradeNow(){
+  if(!getToken()){ alert('还没有 Token'); return; }
+  log2('<span class="pulse"></span>正在升级为 4 天长效 Token…');
+  const t=await upgradeToken();
+  if(t){ saveToken(t); log2('✅ 已升级为 4 天长效 Token'); mintQr(); }
+  else log2('⚠️ 升级失败（可能已是长效，或 Token 已失效）');
+}
+async function pasteToken(){
+  const t=document.getElementById('pasteTok').value.trim();
+  if(!t||!t.startsWith('eyJ')){ plog('格式不像 JWT Token'); return; }
+  saveToken(t); plog('<span class="pulse"></span>正在校验并升级…');
+  if(!isLong()){
+    const u=await upgradeToken();
+    if(u){ saveToken(u); plog('✅ 已保存并升级为 4 天长效 Token'); }
+    else plog('⚠️ 已保存，但升级失败（Token 可能已过期）');
+  } else plog('✅ 已保存 4 天长效 Token');
+  await refreshPoints();
+  mintQr();
+}
+
+/* ================= 官方二维码铸造 + 断点续接 ================= */
+let CUR_SCENE=null, QR_GEN=0, qrTimer=null, gotTok=false;
+
+function saveScene(sid, img){
+  try{ localStorage.setItem(LS_SCENE, JSON.stringify({sid:sid, img:img, ts:Date.now()})); }catch(e){}
+}
+function loadScene(){
+  try{ const s=JSON.parse(localStorage.getItem(LS_SCENE)); if(s&&s.sid&&s.img) return s; }catch(e){}
+  return null;
+}
+function clearScene(){ try{ localStorage.removeItem(LS_SCENE); }catch(e){} }
+
+function maskShow(html){ const m=document.getElementById('qrMask'); m.style.display='flex'; m.innerHTML=html; }
+function maskHide(){ document.getElementById('qrMask').style.display='none'; }
+
+async function tryBootstrap(){
+  if(!BOOTSTRAP || !BOOTSTRAP.startsWith('eyJ')) return false;
+  TOK_SRC='内置'; saveToken(BOOTSTRAP);
+  if(!isLong()){ const u=await upgradeToken(); if(u) saveToken(u); }
+  return getToken() && tokRemain()>0;
+}
+
+async function tryMint(token){
+  const sid=String(Date.now());
+  CUR_SCENE=sid; const gen=++QR_GEN;
+  try{
+    const r=await fetch(API2+"/scan_tt/getQrcode",{method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({id:sid})});
+    const txt=await r.text();
+    let j=null; try{ j=JSON.parse(txt); }catch(e){}
+    if(gen!==QR_GEN) return {ok:true, stale:true};
+    if(j && j.url){
+      const img=document.getElementById('qrImg');
+      img.style.display='block'; img.src=j.url;
+      maskHide(); setDiag('✅ 已铸造'); saveScene(sid, j.url);
+      const meta=document.getElementById('qrMeta');
+      meta.style.display='block';
+      meta.innerHTML='✅ 官方二维码已注册 · <b>100 秒后自动刷新</b>';
+      startQrPoll(sid, gen);
+      clearTimeout(qrTimer);
+      qrTimer=setTimeout(()=>{ if(gen===QR_GEN) mintQr(); }, 100000);
+      return {ok:true};
+    }
+    return {ok:false, err:'HTTP '+r.status+' · '+txt.slice(0,80)};
+  }catch(e){ return {ok:false, err:'网络/CORS: '+e.message}; }
+}
+
+async function mintQr(){
+  if(!getToken() || tokRemain()<=0){ await tryBootstrap(); }
+  maskShow('正在铸造官方二维码…');
+  let res = (getToken() && tokRemain()>0) ? await tryMint(getToken()) : {ok:false, err:'无有效 Token'};
+
+  if(!res.ok && !res.stale){
+    log2('<span class="pulse"></span>铸造失败，自动切换内置 Token 重试…');
+    if(await tryBootstrap()){
+      maskShow('正在用内置 Token 重铸…');
+      res = await tryMint(getToken());
+    }
+  }
+  if(!res.ok && !res.stale){
+    setDiag('❌ 铸造失败');
+    maskShow('铸造失败<br><span class="muted">'+res.err+'</span>'
+      +'<div style="margin-top:10px;font-size:12px;color:#58a6ff">已自动用内置 Token 重试仍失败，请把上面这一行错误发我</div>');
+  }
+}
+
+function startQrPoll(sid, gen){
+  (async function loop(){
+    for(let i=0;i<80;i++){
+      if(gen!==QR_GEN||gotTok) return;
+      try{
+        const r=await fetch(API2+"/scan_tt/waitScan",{method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({id:sid,timeout:2})});
+        const j=await r.json();
+        if(j&&j.token&&gen===QR_GEN){
+          gotTok=true; clearScene();
+          log2('<span class="pulse"></span>扫码成功，正在升级为长效 Token…');
+          await handleNewToken(j); return;
+        }
+        if(j&&j.user&&j.usercode&&gen===QR_GEN){
+          gotTok=true; clearScene();
+          const jj=await exchange("https://ali.gtrmt.cn:8891/?sceneid="+sid+"&path=toutiao", j.usercode);
+          if(jj) return;
+        }
+      }catch(e){}
+      await sleep(800);
+    }
+  })();
+}
+
+async function handleNewToken(j){
+  saveToken(j.token);
+  const up=await upgradeToken();
+  if(up) saveToken(up);
+  const fin=getToken(), i=jwtInfo(fin);
+  log2('✅ 成功！'+(i&&i.name||'')+' · '+(isLong()?'4天长效 Token':'短 Token')+
+       ' · 剩 '+Math.floor((i.exp-Date.now())/3600000)+' 小时');
+  gotTok=false; maskHide();
+  await refreshPoints();
+  document.getElementById('qrMeta').innerHTML='✅ 已获取 4 天长效 Token，可切到「一键刷分」';
+  window.scrollTo(0,0);
+}
+
+async function exchange(url, code){
+  try{
+    const r=await fetch(API2+"/scan_tt/check",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url:url,usercode:code})});
+    const j=await r.json();
+    if(j.token){ await handleNewToken(j); return j; }
+  }catch(e){}
+  return null;
+}
+
+/* ================= 刷分（v11.0 秒级） ================= */
+async function api(path, body){
+  const tok=getToken();
+  const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(),15000);
+  try{
+    const r=await fetch(PROD+path,{method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+tok},
+      body:JSON.stringify(body||{}),signal:ctl.signal});
+    return await r.json();
+  }catch(e){ return {_err:String(e)}; }
+  finally{ clearTimeout(tm); }
+}
+async function checkPoints(){
+  const d=await api("/services/gttt-integral-mgt/wxIntegral/userIntegral",{});
+  const rd=(d&&d.retData)||{};
+  return {sign:rd.signIntegral|0,click:rd.clickIntegral|0,read_time:rd.readingTimeIntegral|0,
+    video_view:rd.readingVideoIntegral|0,video_time:rd.readingVideoTimeCountIntegral|0,
+    like:rd.likeIntegral|0,comment:rd.commentIntegral|0,share:rd.shareIntegral|0,
+    step:rd.stepIntegral|0,total:d.integralDailyAll|0};
+}
+function renderTable(p){
+  let h='<table>';
+  for(const k of Object.keys(CAPS)){
+    const val=p[k]||0,cap=CAPS[k];
+    const bar='█'.repeat(Math.round(Math.min(val,cap)/cap*16));
+    const mark=val>=cap?'✅':(val>0?'差'+(cap-val):'缺'+cap);
+    h+='<tr><td>'+LABELS[k]+'</td><td class="v"><span class="bar">'+bar+'</span> '+val+'/'+cap+' '+mark+'</td></tr>';
+  }
+  h+='<tr><td><b>总计</b></td><td class="v"><b>'+(p.total||0)+' / 45</b></td></tr></table>';
+  document.getElementById('ptsTable').innerHTML=h;
+  return p;
+}
+async function refreshPoints(){
+  if(tokRemain()<=0){ document.getElementById('ptsTable').innerHTML=
+    '<span class="badge err">Token 无效或已过期</span> 请先切到「取 Token」扫码'; return; }
+  document.getElementById('ptsTable').innerHTML='查询中…';
+  renderTable(await checkPoints());
+}
+function loadState(){
+  const today=new Date().toISOString().slice(0,10);
+  try{ const s=JSON.parse(localStorage.getItem(LS_STATE)); if(s&&s.date===today) return s; }catch(e){}
+  return {date:today,liked:[],read:[],commented:[],shared:[]};
+}
+function saveState(s){ try{ localStorage.setItem(LS_STATE,JSON.stringify(s)); }catch(e){} }
+function clearState(){ localStorage.removeItem(LS_STATE); alert('已清除，刷新页面生效'); }
+function log(s){ const el=document.getElementById('logArea'); el.style.display='block'; el.textContent+=s+'\n'; el.scrollTop=el.scrollHeight; }
+
+async function collect(){
+  async function fetchPage(skip){
+    const d=await api("/services/gttt-content-mgt-get/wxContent/contentList",{limit:20,skip:skip,sort:{updated:-1}});
+    return (d&&(d.value||(d.retData||{}).value))||[];
+  }
+  const skips=[]; for(let s=0;s<360;s+=20) skips.push(s);
+  const pages=await Promise.all(skips.map(fetchPage));
+  const arts=[],vids=[],seen=new Set();
+  for(const vals of pages) for(const a of vals){
+    const cid=a._cid||''; if(!cid||seen.has(cid)) continue;
+    seen.add(cid); (a.video?vids:arts).push(a);
+  }
+  return {arts,vids};
+}
+async function tSign(need){
+  if(!need.sign) return;
+  const r=await api("/services/gttt-integral-mgt/integral/sign",{version:"1",gtrmtFlag:"GT"});
+  log('✔ 签到: '+(r.value||r.retCode));
+}
+async function tRead(pool,need,state){
+  let ok=0;
+  for(const a of pool){
+    if(ok>=need.click) break;
+    const cid=a._cid,title=(a.title||'').slice(0,30);
+    if(!cid||state.read.includes(cid)) continue;
+    const r1=await api("/services/gttt-integral-mgt/integral/countIntegral",{_cid:cid,title:title,status:"1"});
+    if(r1.retCode===1001){ state.read.push(cid); continue; }
+    if(r1.retCode!==0) continue;
+    await sleep(150);
+    const r2=await api("/services/gttt-integral-mgt/integral/countIntegral",{_cid:cid,title:title,status:"2"});
+    if(r2.retCode===0){ ok++; state.read.push(cid); log('📖 阅读 #'+ok+': '+title); }
+    await sleep(150);
+  }
+  log('✔ 阅读文章: 发起 '+ok+' 篇');
+}
+async function tReadtime(pool){
+  const a=pool.find(x=>x._cid); if(!a) return;
+  const cid=a._cid,title=(a.title||'').slice(0,30);
+  await api("/services/gttt-integral-mgt/integral/countIntegral",{_cid:cid,title:title,status:"1"});
+  await sleep(150);
+  await api("/services/gttt-integral-mgt/integral/countIntegral",{_cid:cid,title:title,status:"2"});
+  await sleep(150);
+  const r=await api("/services/gttt-integral-mgt/integral/readingTimeIntegral",
+    {_cid:cid,title:title,startTime:Date.now()-3600000,readingTime:360});
+  log('✔ 阅读时长: '+(r.retCode===0?'一次调用 6/6 ✅':'失败 '+JSON.stringify(r).slice(0,60)));
+}
+async function tVideo(vids,need){
+  let ok=0,needTime=need.video_time;
+  for(const v of vids){
+    if(ok>=need.video_view) break;
+    const cid=v._cid; if(!cid) continue;
+    const title=(v.title||'').slice(0,30);
+    const rt=needTime>0?360:60;
+    const r=await api("/services/gttt-integral-mgt/integral/headvideoIntegral",
+      {_cid:cid,title:title,startTime:0,endTime:rt,readingTime:rt,state:true,
+       long:parseInt(v.duration||120,10),isTheFirst:1});
+    if(r.retCode===0){ ok++; needTime=Math.max(0,needTime-6); log('📺 视频收看 #'+ok+': '+title); }
+    await sleep(150);
+  }
+  log('✔ 视频: 收看 '+ok+' 次'+(need.video_time?'（时长顺带 6/6）':''));
+}
+async function tLike(pool,state){
+  let got=(await checkPoints()).like,fired=0;
+  for(const a of pool){
+    if(got>=CAPS.like) break;
+    const cid=a._cid,title=(a.title||'').slice(0,26);
+    if(!cid||state.liked.includes(cid)) continue;
+    const r=await api("/services/gttt-content-mgt-get/like/like",{_cid:cid});
+    if(r.ret!=='like success'){ state.liked.push(cid); continue; }
+    state.liked.push(cid); fired++;
+    const li=await api("/services/gttt-integral-mgt/integral/likeIntegral",{_cid:cid,title:title});
+    if(String(li.value||'').indexOf('取消')>=0) log('⚠ 点赞被取消（跳过）: '+title);
+    else log('👍 点赞 #'+fired+': '+title);
+    if(fired%2===0) got=(await checkPoints()).like;
+    await sleep(300);
+  }
+  log('✔ 点赞: 发起 '+fired+' 篇（漏计属正常，靠验分补齐）');
+}
+async function tComment(pool,state){
+  let ok=0;
+  for(const a of pool){
+    if(ok>=15) break;
+    const cid=a._cid,title=(a.title||'').slice(0,26);
+    if(!cid||state.commented.includes(cid)) continue;
+    const r=await api("/services/gttt-content-mgt-get/comment/comment",
+      {_cid:cid,comment:COMMENTS[ok%COMMENTS.length]});
+    if(String(r.ret||'').indexOf('SUCCESS')>=0){ ok++; state.commented.push(cid); log('💬 留言 #'+ok+': '+title); }
+    await sleep(150);
+  }
+  log('✔ 留言: 发起 '+ok+' 条（积分需管理员审核，当天或隔天到账）');
+}
+async function tShare(pool,need,state){
+  let ok=0; const target=need.share+2;
+  for(const a of pool){
+    if(ok>=target) break;
+    const cid=a._cid,title=(a.title||'').slice(0,30);
+    if(!cid||state.shared.includes(cid)) continue;
+    const r=await api("/services/gttt-integral-mgt/integral/shareIntegral",{_cid:cid,title:title});
+    if(r.retCode===0){ ok++; state.shared.push(cid); log('📤 分享 #'+ok+': '+title); }
+    await sleep(150);
+  }
+  log('✔ 分享: 发起 '+ok+' 次');
+}
+async function tStep(pool,need){
+  let ok=0;
+  for(const a of pool){
+    if(ok>=need.step) break;
+    const cid=a._cid; if(!cid) continue;
+    const r=await api("/services/gttt-integral-mgt/integral/stepIntegral",{_cid:cid,step:5000});
+    if(r.retCode===0){ ok++; log('👣 计步 #'+ok); }
+    await sleep(150);
+  }
+  log('✔ 计步: 发起 '+ok+' 次');
+}
+
+let running=false;
+async function runScore(){
+  if(running) return;
+  if(!getToken()||tokRemain()<=0){
+    document.getElementById('scoreHint').style.display='block';
+    document.getElementById('scoreHint').innerHTML='<span class="badge err">没有可用 Token</span> 请先切到「📱 取 Token」扫码';
+    switchTab('token'); return;
+  }
+  running=true;
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('logArea').textContent='';
+  document.getElementById('logArea').style.display='block';
+  document.getElementById('runSummary').style.display='none';
+  const t0=Date.now();
+  try{
+    log('── '+new Date().toLocaleTimeString()+' 开始 ──');
+    const before=await checkPoints(); renderTable(before);
+    const need={}; for(const k of Object.keys(CAPS)) need[k]=Math.max(0,CAPS[k]-(before[k]||0));
+    if(!Object.values(need).some(v=>v>0)){ log('🎉 今日已满分（45/45），无需运行'); return; }
+    log('待补: '+Object.keys(need).filter(k=>need[k]>0).map(k=>LABELS[k]+need[k]).join(', '));
+
+    log('收集文章与视频…');
+    const {arts,vids}=await collect();
+    log('内容池: '+arts.length+' 篇文章, '+vids.length+' 个视频');
+
+    const state=loadState();
+    let idx=0; const take=n=>arts.slice(idx,idx+=n);
+    const P={read:take(need.click+4),readtime:take(1),like:take(16),
+             comment:take(16),share:take(need.share+6),step:take(need.step+3)};
+
+    log('并行执行各任务…');
+    await Promise.allSettled([
+      tSign(need),
+      tRead(P.read,need,state),
+      need.read_time?tReadtime(P.readtime):null,
+      (need.video_view||need.video_time)?tVideo(vids,need):null,
+      need.like?tLike(P.like,state):null,
+      need.comment?tComment(P.comment,state):null,
+      need.share?tShare(P.share,need,state):null,
+      need.step?tStep(P.step,need):null,
+    ]);
+    saveState(state);
+
+    await sleep(4000);
+    const after=await checkPoints(); renderTable(after);
+    const diff=after.total-before.total;
+    const el=document.getElementById('runSummary'); el.style.display='block';
+    el.innerHTML='<b>本次净增 '+diff+' 分</b> · 总耗时 '+((Date.now()-t0)/1000).toFixed(1)+' 秒'
+      +(after.total>=45?'<br>🎉🎉🎉 45/45 满分！'
+        :(state.commented.length&&after.comment<5?'<br>ℹ️ 留言已发 '+state.commented.length+' 条，等管理员审核后自动计分（可能隔天）'
+          :'<br>⚠️ 仍缺项可再点一次「一键刷分」自动补齐（幂等）'));
+    log('── 完成，用时 '+((Date.now()-t0)/1000).toFixed(1)+' 秒 ──');
+  }catch(e){ log('⚠ 异常: '+(e&&e.message||e)); }
+  finally{ running=false; document.getElementById('runBtn').disabled=false; }
+}
+
+function switchTab(name){
+  const t=name==='token';
+  document.getElementById('tabToken').style.display=t?'':'none';
+  document.getElementById('tabScore').style.display=t?'none':'';
+  document.getElementById('tabBtnToken').className='tab'+(t?' on':'');
+  document.getElementById('tabBtnScore').className='tab'+(t?'':' on');
+  if(!t) refreshPoints();
+}
+
+/* ================= 启动 ================= */
+let TOK_SRC = '无';
+function lsOK(){ try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return true; }catch(e){ return false; } }
+function setDiag(qr){
+  const el=document.getElementById('diag');
+  if(!el) return;
+  const rem=tokRemain();
+  el.innerHTML=' v6 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+    +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
+    +' · 二维码:'+qr;
+}
+
+async function boot(){
+  updateChip(); fillTokBox();
+  setInterval(updateChip,30000);
+
+  // 1) 优先从链接参数注入
+  const injected = await bootstrapFromUrl();
+
+  // 2) 没有可用 Token → 自动载入内置引导 Token（并升级为 4 天）
+  if(getToken() && tokRemain() > 0 && TOK_SRC==='无') TOK_SRC='已存';
+  if(!getToken() || tokRemain() <= 0){
+    if(BOOTSTRAP && BOOTSTRAP.startsWith('eyJ')){
+      TOK_SRC='内置'; saveToken(BOOTSTRAP);
+      log2('<span class="pulse"></span>已自动载入内置 Token，正在启用…');
+      if(!isLong()){
+        const u = await upgradeToken();
+        if(u) saveToken(u);
+      }
+      const bi = jwtInfo(getToken());
+      if(bi && bi.exp > Date.now()){
+        log2('✅ 已启用内置 Token（'+(bi.name||'')+'）· 剩 '+Math.floor((bi.exp-Date.now())/3600000)+' 小时');
+      } else {
+        log2('⚠️ 内置 Token 已过期，请重新获取一个粘贴进来');
+      }
+    }
+  }
+
+  // 3) 断点续接：页面被切走后返回，沿用同一张二维码继续等结果
+  if(getToken() && tokRemain()>0){
+    const sc = loadScene();
+    if(sc && Date.now()-sc.ts < 110000){
+      CUR_SCENE = sc.sid; const gen = ++QR_GEN;
+      document.getElementById('qrImg').style.display='block';
+      document.getElementById('qrImg').src = sc.img;
+      maskHide();
+      const meta=document.getElementById('qrMeta');
+      meta.style.display='block';
+      meta.innerHTML='✅ 已恢复上次的二维码 · 继续等待扫码结果…';
+      startQrPoll(sc.sid, gen);
+      qrTimer = setTimeout(()=>{ if(gen===QR_GEN) mintQr(); }, Math.max(3000, 110000-(Date.now()-sc.ts)));
+      return;
+    }
+  }
+  mintQr();
+}
+
+/* ================= 入口：先鉴权，后启动 ================= */
+(function init(){
+  let authed = false;
+  try{ authed = localStorage.getItem(LS_AUTH) === '1'; }catch(e){}
+  if(authed){
+    showApp();
+  } else {
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('loginUser').focus();
+  }
+})();
+</script>
+</body>
+</html>

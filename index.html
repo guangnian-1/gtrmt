@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v21</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v22</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -190,6 +190,13 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
       <button class="btn" id="runBtn" onclick="runScore()">一键刷分</button>
     </div>
     <div id="scoreHint" class="kv" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>☁️ 云端定时自动刷分</h2>
+    <p class="sub">开启后，每天 09:10 云端自动刷满 45 分，无需打开网页。需先扫码上传 Token 到云端。</p>
+    <label class="ck" style="display:inline-flex"><input type="checkbox" id="cloudAuto" onchange="toggleCloudAuto()"> 启用云端定时</label>
+    <div class="kv" id="cloudAutoStatus">加载中…</div>
   </div>
 
   <div class="card">
@@ -392,6 +399,29 @@ async function uploadTokenToCloud(){
     const i = jwtInfo(t);
     await backend('/api/token', { method:'POST', body: JSON.stringify({ token: t, expireAt: (i && i.exp) || 0 }) });
   }catch(e){}
+}
+/* 云端定时开关 */
+async function loadCloudAuto(){
+  try{
+    const r = await backend('/api/score/status');
+    const en = document.getElementById('cloudAuto');
+    const st = document.getElementById('cloudAutoStatus');
+    if(en) en.checked = !!r.cloudAuto;
+    if(st){
+      st.innerHTML = '云端定时：<b>' + (r.cloudAuto ? '已启用' : '已关闭') + '</b> · Token：'
+        + (r.hasToken ? ('<b style="color:#3fb950">已上传</b>' + (r.points ? (' · 当前 ' + r.points.total + '/45 分') : '')) : '<b style="color:#bb8009">未上传（请先扫码）</b>');
+    }
+  }catch(e){
+    const st = document.getElementById('cloudAutoStatus');
+    if(st) st.innerHTML = '<span style="color:#f85149">状态获取失败</span>';
+  }
+}
+async function toggleCloudAuto(){
+  const en = document.getElementById('cloudAuto').checked;
+  try{
+    await backend('/api/cloud-config', { method:'POST', body: JSON.stringify({ enabled: en }) });
+    await loadCloudAuto();
+  }catch(e){ alert('保存失败，请重试'); }
 }
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1118,7 +1148,7 @@ function switchTab(name){
   document.getElementById('tabBtnToken').className = 'tab' + (name==='token' ? ' on' : '');
   document.getElementById('tabBtnScore').className = 'tab' + (name==='score' ? ' on' : '');
   document.getElementById('tabBtnManage').className = 'tab' + (name==='manage' ? ' on' : '');
-  if(name==='score') refreshPoints();
+  if(name==='score'){ refreshPoints(); loadCloudAuto(); }
   if(name==='manage' && SESSION && SESSION.role === 'admin'){ loadUsers(); loadLogs(); }
 }
 
@@ -1129,7 +1159,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v21 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v22 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }

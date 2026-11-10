@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v20</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v21</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -383,6 +383,15 @@ function postLog(type, detail){
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+SESSION.token},
     body: JSON.stringify({type:type, detail:detail||{}})
   }).catch(()=>{});
+}
+/* 上传广铁 Token 到云端，供云端定时自动刷分使用 */
+async function uploadTokenToCloud(){
+  const t = getToken();
+  if(!t || !SESSION || !SESSION.token) return;
+  try{
+    const i = jwtInfo(t);
+    await backend('/api/token', { method:'POST', body: JSON.stringify({ token: t, expireAt: (i && i.exp) || 0 }) });
+  }catch(e){}
 }
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -705,7 +714,7 @@ async function upgradeNow(){
   if(!getToken()){ alert('还没有 Token'); return; }
   log2('<span class="pulse"></span>正在升级为 4 天长效 Token…');
   const t=await upgradeToken();
-  if(t){ saveToken(t); log2('✅ 已升级为 4 天长效 Token'); mintQr(); }
+  if(t){ saveToken(t); await uploadTokenToCloud(); log2('✅ 已升级为 4 天长效 Token'); mintQr(); }
   else log2('⚠️ 升级失败（可能已是长效，或 Token 已失效）');
 }
 /* 自动续期：Token 剩余不足 2 天时，无扫码链式续期（4 天 token 调 /wx/check 直接换新 4 天，实测通过） */
@@ -718,7 +727,7 @@ async function autoRenew(){
   if(remain > 0 && remain < 2*24*3600){
     log2('<span class="pulse"></span>Token 剩余不足 2 天，正在自动续期为 4 天…');
     const up=await upgradeToken();
-    if(up){ saveToken(up); log2('✅ 已自动续期 4 天长效 Token'); return true; }
+    if(up){ saveToken(up); await uploadTokenToCloud(); log2('✅ 已自动续期 4 天长效 Token'); return true; }
     log2('⚠️ 自动续期失败，请稍后重试或重新扫码');
   }
   return false;
@@ -806,6 +815,7 @@ async function handleNewToken(j){
   // 立即升级为 4 天长效 token（实测 /wx/check 短→长、长→长 均可用）
   const up=await upgradeToken();
   if(up) saveToken(up);
+  await uploadTokenToCloud();   // 同步到云端，供定时自动刷分
   const fin=getToken(), i=jwtInfo(fin);
   // 上报 token 归属（管理员后台可见：谁绑定了哪个广铁头条 token）
   postLog('token_bind', {tokenName:(i&&i.name)||'未知', expire:(i&&i.exp)||0, isLong:isLong()});
@@ -1119,7 +1129,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v20 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v21 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }

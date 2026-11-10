@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v14</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v15</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -214,6 +214,18 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
 
 <div id="tabManage" style="display:none">
   <div class="card">
+    <h2>🔒 修改密码</h2>
+    <label class="mgLabel">旧密码</label>
+    <input class="mgInput" id="oldPass" type="password" placeholder="输入当前密码" autocomplete="off" />
+    <label class="mgLabel">新密码</label>
+    <input class="mgInput" id="newPass2" type="password" placeholder="至少 4 位" autocomplete="off" />
+    <label class="mgLabel">确认新密码</label>
+    <input class="mgInput" id="newPass3" type="password" placeholder="再次输入新密码" autocomplete="off" />
+    <button class="btn" onclick="changePassword()">确认修改</button>
+    <div id="changePwdStatus" class="kv" style="display:none"></div>
+  </div>
+
+  <div class="card adminOnly">
     <h2>👤 添加普通账号</h2>
     <label class="mgLabel">用户名</label>
     <input class="mgInput" id="newUser" type="text" placeholder="2~20 位，中英文/数字/下划线" autocomplete="off" />
@@ -232,12 +244,12 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
     <div id="addUserStatus" class="kv" style="display:none"></div>
   </div>
 
-  <div class="card">
+  <div class="card adminOnly">
     <h2>👥 账号状态（谁登录 / 绑定哪个 token）</h2>
     <div id="userList"><span class="muted">加载中…</span></div>
   </div>
 
-  <div class="card">
+  <div class="card adminOnly">
     <h2>📋 运行记录</h2>
     <button class="btn sec" onclick="loadLogs()">🔄 刷新记录</button>
     <div id="logList"><span class="muted">加载中…</span></div>
@@ -363,7 +375,7 @@ function postLog(type, detail){
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtTime(ts){ const d=new Date(ts); const p=n=>String(n).padStart(2,'0'); return (d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
-function typeLabel(t){ return ({login:'登录', logout:'退出', score:'刷分', user_add:'加账号', user_del:'删账号', token_bind:'绑定Token', user_expire:'设置有效期'})[t] || t; }
+function typeLabel(t){ return ({login:'登录', logout:'退出', score:'刷分', user_add:'加账号', user_del:'删账号', token_bind:'绑定Token', user_expire:'设置有效期', password_change:'修改密码'})[t] || t; }
 function formatDetail(t, d){
   if(!d) return '';
   if(t==='score'){
@@ -375,6 +387,7 @@ function formatDetail(t, d){
   if(t==='user_add') return '添加账号 '+esc(d.username||'');
   if(t==='user_del') return '删除账号 '+esc(d.username||'');
   if(t==='user_expire') return '设置账号 '+esc(d.username||'')+' 有效期至 '+(d.expireAt?fmtTime(d.expireAt):'永久');
+  if(t==='password_change') return '修改了账号 '+esc(d.username||'')+' 的密码';
   if(t==='token_bind') return '绑定广铁头条 token：'+esc(d.tokenName||'')+(d.isLong?'（长效）':'')+(d.expire?' · 到期 '+fmtTime(d.expire):'');
   return JSON.stringify(d);
 }
@@ -412,7 +425,10 @@ function showApp(){
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
   const isAdmin = SESSION && SESSION.role === 'admin';
-  document.getElementById('tabBtnManage').style.display = isAdmin ? '' : 'none';
+  // 所有用户都显示「管理/账号」标签，内容按角色区分
+  document.getElementById('tabBtnManage').style.display = '';
+  document.getElementById('tabBtnManage').textContent = isAdmin ? '🛠 管理' : '👤 账号';
+  document.querySelectorAll('.adminOnly').forEach(el => el.style.display = isAdmin ? '' : 'none');
   const ub = document.getElementById('userBadge');
   if(ub) ub.textContent = (SESSION ? SESSION.username : '') + (isAdmin ? ' · 管理员' : '');
   if(!_booted){ _booted = true; boot(); }
@@ -526,6 +542,30 @@ async function showSetExpire(u){
     if(j && j.ok){ postLog('user_expire', {username:u, expireAt:expireAt}); loadUsers(); }
     else alert((j&&j.error) || '设置失败');
   }catch(e){ alert('无法连接服务器：' + e.message); }
+}
+
+async function changePassword(){
+  const oldP = document.getElementById('oldPass').value;
+  const np1 = document.getElementById('newPass2').value;
+  const np2 = document.getElementById('newPass3').value;
+  const st = document.getElementById('changePwdStatus');
+  st.style.display = 'block';
+  if(!oldP || !np1 || !np2){ st.innerHTML = '❌ 请填写完整'; return; }
+  if(np1.length < 4){ st.innerHTML = '❌ 新密码至少 4 位'; return; }
+  if(np1 !== np2){ st.innerHTML = '❌ 两次输入的新密码不一致'; return; }
+  st.innerHTML = '修改中…';
+  try{
+    const j = await backend('/api/password', {method:'POST', body:JSON.stringify({oldHash:sha256(oldP), newHash:sha256(np1)})});
+    if(j && j.ok){
+      st.innerHTML = '✅ 密码已修改，下次登录请用新密码';
+      document.getElementById('oldPass').value = '';
+      document.getElementById('newPass2').value = '';
+      document.getElementById('newPass3').value = '';
+      postLog('password_change', {username: SESSION&&SESSION.username});
+    } else {
+      st.innerHTML = '❌ ' + ((j&&j.error) || '修改失败');
+    }
+  }catch(e){ st.innerHTML = '❌ 无法连接服务器：' + e.message; }
 }
 
 async function delUser(u){
@@ -1047,7 +1087,7 @@ function switchTab(name){
   document.getElementById('tabBtnScore').className = 'tab' + (name==='score' ? ' on' : '');
   document.getElementById('tabBtnManage').className = 'tab' + (name==='manage' ? ' on' : '');
   if(name==='score') refreshPoints();
-  if(name==='manage'){ loadUsers(); loadLogs(); }
+  if(name==='manage' && SESSION && SESSION.role === 'admin'){ loadUsers(); loadLogs(); }
 }
 
 /* ================= 启动 ================= */
@@ -1057,7 +1097,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v14 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v15 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }

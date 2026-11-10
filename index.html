@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v13</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v14</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -219,6 +219,15 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
     <input class="mgInput" id="newUser" type="text" placeholder="2~20 位，中英文/数字/下划线" autocomplete="off" />
     <label class="mgLabel">密码</label>
     <input class="mgInput" id="newPass" type="password" placeholder="至少 4 位" autocomplete="off" />
+    <label class="mgLabel">使用有效期</label>
+    <select class="mgInput" id="newExpire">
+      <option value="0">永久有效</option>
+      <option value="1">1 天</option>
+      <option value="7">7 天</option>
+      <option value="30">30 天</option>
+      <option value="90">90 天</option>
+      <option value="365">1 年</option>
+    </select>
     <button class="btn" onclick="addUser()">添加账号</button>
     <div id="addUserStatus" class="kv" style="display:none"></div>
   </div>
@@ -354,7 +363,7 @@ function postLog(type, detail){
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function fmtTime(ts){ const d=new Date(ts); const p=n=>String(n).padStart(2,'0'); return (d.getMonth()+1)+'/'+d.getDate()+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds()); }
-function typeLabel(t){ return ({login:'登录', logout:'退出', score:'刷分', user_add:'加账号', user_del:'删账号', token_bind:'绑定Token'})[t] || t; }
+function typeLabel(t){ return ({login:'登录', logout:'退出', score:'刷分', user_add:'加账号', user_del:'删账号', token_bind:'绑定Token', user_expire:'设置有效期'})[t] || t; }
 function formatDetail(t, d){
   if(!d) return '';
   if(t==='score'){
@@ -365,6 +374,7 @@ function formatDetail(t, d){
   if(t==='login' || t==='logout') return '用户 '+esc(d.username||'')+'（'+esc(d.role||'')+'）';
   if(t==='user_add') return '添加账号 '+esc(d.username||'');
   if(t==='user_del') return '删除账号 '+esc(d.username||'');
+  if(t==='user_expire') return '设置账号 '+esc(d.username||'')+' 有效期至 '+(d.expireAt?fmtTime(d.expireAt):'永久');
   if(t==='token_bind') return '绑定广铁头条 token：'+esc(d.tokenName||'')+(d.isLong?'（长效）':'')+(d.expire?' · 到期 '+fmtTime(d.expire):'');
   return JSON.stringify(d);
 }
@@ -378,7 +388,7 @@ async function doLogin(){
   try{
     const j = await backend('/api/login', {method:'POST', body:JSON.stringify({username:u, passwordHash:sha256(p)})});
     if(j && j.ok){
-      saveSession({token:j.token, role:j.role, username:j.username});
+      saveSession({token:j.token, role:j.role, username:j.username, expireAt:j.expireAt||0});
       postLog('login', {username:j.username, role:j.role});
       showApp();
     } else {
@@ -408,19 +418,37 @@ function showApp(){
   if(!_booted){ _booted = true; boot(); }
 }
 
+/* 账号有效期：expireAt=0 永久；否则为到期时间戳 */
+function isExpired(){
+  const ea = (SESSION && SESSION.expireAt) || 0;
+  return ea !== 0 && ea < Date.now();
+}
+async function refreshExpire(){
+  if(!SESSION || SESSION.role === 'admin') return;
+  try{
+    const j = await backend('/api/me');
+    if(j && j.expireAt !== undefined){
+      SESSION.expireAt = j.expireAt;
+      try{ localStorage.setItem(LS_SESSION, JSON.stringify(SESSION)); }catch(e){}
+    }
+  }catch(e){}
+}
+
 /* 管理面板 */
 async function addUser(){
   const u = document.getElementById('newUser').value.trim();
   const p = document.getElementById('newPass').value;
+  const days = parseInt(document.getElementById('newExpire').value, 10) || 0;
   const st = document.getElementById('addUserStatus');
   st.style.display = 'block';
   if(!u || !p){ st.innerHTML = '❌ 请输入用户名和密码'; return; }
   if(p.length < 4){ st.innerHTML = '❌ 密码至少 4 位'; return; }
   st.innerHTML = '添加中…';
+  const expireAt = days > 0 ? (Date.now() + days * 86400000) : 0;
   try{
-    const j = await backend('/api/users', {method:'POST', body:JSON.stringify({username:u, passwordHash:sha256(p)})});
+    const j = await backend('/api/users', {method:'POST', body:JSON.stringify({username:u, passwordHash:sha256(p), expireAt:expireAt})});
     if(j && j.ok){
-      st.innerHTML = '✅ 已添加账号 <b>'+esc(u)+'</b>';
+      st.innerHTML = '✅ 已添加账号 <b>'+esc(u)+'</b>（'+(days>0?days+' 天':'永久')+'）';
       document.getElementById('newUser').value = '';
       document.getElementById('newPass').value = '';
       postLog('user_add', {username:u});
@@ -442,6 +470,9 @@ async function loadUsers(){
     try{ const jl = await backend('/api/logs?limit=500'); logs = (jl&&jl.logs)||[]; }catch(e){}
 
     const users = j.users || [];
+    const expireMap = {};
+    for(const u of users) expireMap[u.username] = u.expireAt || 0;
+
     const names = ['admin'].concat(users.map(u=>u.username));
     const map = {};
     for(const n of names) map[n] = {lastLogin:null, tokenName:null, tokenExp:null, tokenLong:false};
@@ -457,22 +488,44 @@ async function loadUsers(){
     }
 
     let h = '<table>';
-    h += '<tr><td><b>账号</b></td><td><b>绑定 Token</b></td><td class="v"><b>最近登录</b></td><td class="v"></td></tr>';
+    h += '<tr><td><b>账号</b></td><td><b>有效期</b></td><td><b>绑定 Token</b></td><td class="v"><b>最近登录</b></td><td class="v"></td></tr>';
     for(const n of names){
       const m = map[n];
       const role = (n==='admin') ? '<span class="badge ok">管理员</span>' : '<span class="badge">普通</span>';
+      let expHtml;
+      if(n==='admin'){ expHtml = '<span class="muted">—</span>'; }
+      else{
+        const ea = expireMap[n] || 0;
+        if(ea === 0){ expHtml = '<span class="badge ok">永久</span>'; }
+        else if(ea < Date.now()){ expHtml = '<span class="badge err">已过期</span>'; }
+        else{ expHtml = '<span class="badge">剩 '+Math.ceil((ea-Date.now())/86400000)+' 天</span>'; }
+      }
       let tok = '<span class="muted">未绑定</span>';
       if(m.tokenName){
         const expired = m.tokenExp && m.tokenExp < Date.now();
         tok = esc(m.tokenName) + (m.tokenLong ? '（长效）' : '') + (expired ? ' <span class="badge err">已过期</span>' : '');
       }
       const lg = m.lastLogin ? fmtTime(m.lastLogin) : '<span class="muted">—</span>';
+      const setExp = (n==='admin') ? '' : '<a href="#" onclick="showSetExpire(\''+esc(n)+'\');return false;" style="color:#58a6ff">改期</a>';
       const del = (n==='admin') ? '' : '<a href="#" onclick="delUser(\''+esc(n)+'\');return false;" style="color:#f85149">删除</a>';
-      h += '<tr><td>'+esc(n)+'<br>'+role+'</td><td>'+tok+'</td><td class="v">'+lg+'</td><td class="v">'+del+'</td></tr>';
+      h += '<tr><td>'+esc(n)+'<br>'+role+'</td><td>'+expHtml+'</td><td>'+tok+'</td><td class="v">'+lg+'</td><td class="v">'+setExp+' '+del+'</td></tr>';
     }
     h += '</table>';
     el.innerHTML = h;
   }catch(e){ el.innerHTML = '❌ 无法连接服务器：' + e.message; }
+}
+
+async function showSetExpire(u){
+  const input = prompt('设置账号「'+u+'」的使用有效期（天数）：\n0 = 永久有效\n其他数字 = N 天后到期', '');
+  if(input === null) return;
+  const days = parseInt(input, 10);
+  if(isNaN(days) || days < 0){ alert('请输入 0 或正整数天数'); return; }
+  const expireAt = days > 0 ? (Date.now() + days * 86400000) : 0;
+  try{
+    const j = await backend('/api/users/expire', {method:'POST', body:JSON.stringify({username:u, expireAt:expireAt})});
+    if(j && j.ok){ postLog('user_expire', {username:u, expireAt:expireAt}); loadUsers(); }
+    else alert((j&&j.error) || '设置失败');
+  }catch(e){ alert('无法连接服务器：' + e.message); }
 }
 
 async function delUser(u){
@@ -894,6 +947,11 @@ function getSelectedTasks(){
 let running=false;
 async function runScore(){
   if(running) return;
+  if(isExpired()){
+    document.getElementById('scoreHint').style.display='block';
+    document.getElementById('scoreHint').innerHTML='<span class="badge err">账号已过期</span> 使用有效期已到，请联系管理员续期后再刷分';
+    return;
+  }
   if(!getToken()||tokRemain()<=0){
     document.getElementById('scoreHint').style.display='block';
     document.getElementById('scoreHint').innerHTML='<span class="badge err">没有可用 Token</span> 请先切到「📱 取 Token」扫码';
@@ -999,7 +1057,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v13 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v14 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }
@@ -1007,6 +1065,13 @@ function setDiag(qr){
 async function boot(){
   updateChip(); fillTokBox();
   setInterval(updateChip,30000);
+
+  // 0) 刷新账号有效期（从后端拉最新，防止本地篡改）
+  await refreshExpire();
+  if(isExpired()){
+    const hint = document.getElementById('scoreHint');
+    if(hint){ hint.style.display='block'; hint.innerHTML='<span class="badge err">账号已过期</span> 使用有效期已到，请联系管理员续期'; }
+  }
 
   // 1) 优先从链接参数注入（管理员一键链接）
   await bootstrapFromUrl();

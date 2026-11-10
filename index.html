@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v22</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v23</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -144,16 +144,6 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
       授权完<b>按返回键回到本页</b>，Token 自动升级为 <b>4 天长效</b>，之后每两天自动续期
     </p>
     <div id="status" class="kv" style="display:none"></div>
-  </div>
-
-  <div class="card">
-    <h2>✅ 当前 Token</h2>
-    <div id="tokInfo" class="kv">尚未获取</div>
-    <textarea id="tokBox" readonly placeholder="获取后自动填入"></textarea>
-    <div class="row">
-      <button class="btn" onclick="copyTok()">复制 Token</button>
-    </div>
-    <p class="muted">Token 只属于当前登录账号，互不串号。扫码后自动填入，切到「一键刷分」直接用。</p>
   </div>
 
   <div class="card">
@@ -671,19 +661,7 @@ function updateChip(){
   else{ dot.style.background='#3fb950'; txt.textContent=(i.name||'')+' · '+len+' · 剩 '+Math.floor(rem/3600)+'h'+Math.ceil((rem%3600)/60)+'m'; }
 }
 function fillTokBox(){
-  const t=getToken();
-  document.getElementById('tokBox').value=t;
-  if(!t){ document.getElementById('tokInfo').innerHTML='尚未获取'; return; }
-  const i=jwtInfo(t), rem=tokRemain();
-  document.getElementById('tokInfo').innerHTML=
-    '<b>用户</b> '+(i&&i.name||'?')+' &nbsp; <b>类型</b> '+(isLong()?'4天长效 ✅':'短Token（建议升级）')+
-    '<br><b>剩余</b> '+(rem>0?(rem>3600?Math.floor(rem/3600)+' 小时 '+Math.ceil((rem%3600)/60)+' 分':Math.ceil(rem/60)+' 分钟'):'已过期');
-}
-function copyTok(){
-  const v=document.getElementById('tokBox').value;
-  if(!v){ alert('还没有 Token'); return; }
-  navigator.clipboard.writeText(v).then(()=>alert('已复制')).catch(()=>{
-    document.getElementById('tokBox').select(); document.execCommand('copy'); alert('已复制'); });
+  // 「当前 Token」显示框已移除；token 状态由顶部 chip（updateChip）显示
 }
 
 /* ================= 从 URL 参数自动注入（一键链接） ================= */
@@ -1159,7 +1137,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v22 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v23 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }

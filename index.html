@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v12</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v13</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -141,7 +141,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
     <button class="btn sec" onclick="mintQr()" id="qrRefreshBtn">🔄 刷新二维码</button>
     <p class="muted" style="text-align:center">
       在微信里<b>长按上方二维码 → 识别图中二维码</b> → 确认授权<br>
-      授权完<b>按返回键回到本页</b>，Token 会自动出现（10 分钟短 Token，刷分够用）
+      授权完<b>按返回键回到本页</b>，Token 自动升级为 <b>4 天长效</b>，之后每两天自动续期
     </p>
     <div id="status" class="kv" style="display:none"></div>
   </div>
@@ -161,10 +161,10 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
       <summary>工作原理（技术说明）</summary>
       <p class="muted" style="line-height:1.9">
       1. 免 token 调官方 <code>getQrCode</code>（8894 网关）铸造并注册二维码（TTL 约 120 秒）<br>
-      2. 页面根据服务端返回的 timeout 提前自动重新铸造，所以二维码始终有效<br>
-      3. 微信扫码授权 → 官方回调 → 页面轮询 <code>waitScan</code> 直接取回 Token（10 分钟）<br>
+      2. 微信扫码授权 → 页面轮询 <code>waitScan</code> 取回短 Token（10 分钟）<br>
+      3. 立即调 <code>/wx/check</code> + <code>agentid=1000031</code> 升级为 <b>4 天长效</b><br>
       4. 扫码账号决定 Token 归属：用谁（陈志航）的微信扫，Token 就是谁的<br>
-      5. 短 Token 已足够刷分（全流程 20~30 秒），无需再升级长效<br>
+      5. <b>自动续期</b>：Token 剩余不足 2 天时自动调 <code>/wx/check</code> 链式续期，永不过期<br>
       6. 扫码时本页被切走也没关系：二维码与 sceneid 会暂存，返回后自动续接取回 Token
       </p>
     </details>
@@ -603,6 +603,21 @@ async function upgradeNow(){
   if(t){ saveToken(t); log2('✅ 已升级为 4 天长效 Token'); mintQr(); }
   else log2('⚠️ 升级失败（可能已是长效，或 Token 已失效）');
 }
+/* 自动续期：Token 剩余不足 2 天时，无扫码链式续期（4 天 token 调 /wx/check 直接换新 4 天，实测通过） */
+async function autoRenew(){
+  const t=getToken();
+  if(!t) return false;
+  const i=jwtInfo(t);
+  if(!i || !i.exp) return false;
+  const remain = Math.floor((i.exp - Date.now())/1000);
+  if(remain > 0 && remain < 2*24*3600){
+    log2('<span class="pulse"></span>Token 剩余不足 2 天，正在自动续期为 4 天…');
+    const up=await upgradeToken();
+    if(up){ saveToken(up); log2('✅ 已自动续期 4 天长效 Token'); return true; }
+    log2('⚠️ 自动续期失败，请稍后重试或重新扫码');
+  }
+  return false;
+}
 /* ================= 官方二维码铸造 + 断点续接 ================= */
 let CUR_SCENE=null, QR_GEN=0, qrTimer=null, gotTok=false;
 
@@ -682,14 +697,18 @@ function startQrPoll(sid, gen){
 
 async function handleNewToken(j){
   TOK_SRC='扫码';
-  saveToken(j.token);   // 直接使用短 token（10 分钟，刷分流程 20~30 秒，够用）
+  saveToken(j.token);
+  // 立即升级为 4 天长效 token（实测 /wx/check 短→长、长→长 均可用）
+  const up=await upgradeToken();
+  if(up) saveToken(up);
   const fin=getToken(), i=jwtInfo(fin);
   // 上报 token 归属（管理员后台可见：谁绑定了哪个广铁头条 token）
   postLog('token_bind', {tokenName:(i&&i.name)||'未知', expire:(i&&i.exp)||0, isLong:isLong()});
-  log2('✅ 成功！'+(i&&i.name||'')+' · Token · 剩 '+Math.max(0,Math.floor((i.exp-Date.now())/60000))+' 分钟');
+  log2('✅ 成功！'+(i&&i.name||'')+' · '+(isLong()?'4天长效 Token':'短 Token')+
+       ' · 剩 '+Math.floor((i.exp-Date.now())/3600000)+' 小时');
   gotTok=false; maskHide();
   await refreshPoints();
-  document.getElementById('qrMeta').innerHTML='✅ 已获取 Token，可切到「一键刷分」';
+  document.getElementById('qrMeta').innerHTML='✅ 已获取 4 天长效 Token，可切到「一键刷分」';
   window.scrollTo(0,0);
 }
 
@@ -980,7 +999,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v12 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v13 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }
@@ -991,6 +1010,11 @@ async function boot(){
 
   // 1) 优先从链接参数注入（管理员一键链接）
   await bootstrapFromUrl();
+
+  // 1.5) 自动续期：有 token 且剩余不足 2 天时，无扫码链式续期为 4 天
+  if(getToken() && tokRemain() > 0){
+    await autoRenew();
+  }
 
   // 2) 断点续接：无有效 token 时，沿用上次未过期的二维码继续等，否则重新铸码
   if(!getToken() || tokRemain() <= 0){

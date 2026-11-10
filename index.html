@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v17</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v18</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -281,16 +281,12 @@ const TASK_META = [
   {key:"step",      label:"计步",     caps:["step"],                   note:""},
 ];
 const COMMENTS = [
-"铁路发展日新月异，向建设者致敬！","一线职工的故事最打动人心！","安全出行，人人有责，写得好！",
-"技术革新让铁路更高效，点赞！","平凡岗位上的不平凡坚守！","服务暖心，旅客出行更舒心！",
-"读完深感振奋，继续加油！","铁路精神薪火相传，令人敬佩！","细节之处见真章，好报道！",
-"奋斗的青春最美丽，共勉！","智慧铁路建设成果喜人！","保通保畅，功不可没！",
-"工匠精神值得每个人学习！","新征程新气象，未来可期！","为默默奉献的铁路人鼓掌！",
-"动车精检细修，护航每一趟旅途","每一次安全出行的背后都有你们的默默付出","这就是我们铁路人的精气神！",
-"写的都是身边事，看得热血沸腾","标准化作业，为安全生产保驾护航","给坚守一线的同事们点赞",
-"铁路人的担当，字里行间都是力量","学先进、赶先进，大家一起加油","高质量检修，让旅客出行更安心",
-"平凡中见伟大，致敬每一位铁路人","看完很有感触，转给同事看看","设备精检细修，安全万无一失",
-"劳动最光荣，奋斗最美丽","为广铁高质量发展点赞","火车头精神，代代相传"];
+"向动车人致敬","动车人好样的","为动车人点赞","动车人辛苦了","动车人真给力",
+"致敬坚守的动车人","动车人加油","动车人最棒","点赞一线动车人","动车人真了不起",
+"向动车人学习","动车人好棒","感谢动车人付出","动车人干劲十足","致敬每一位动车人",
+"动车人真辛苦","动车人最可爱","动车人最光荣","致敬可爱的动车人","动车人真拼",
+"点赞坚守的动车人","致敬默默奉献的动车人","为动车人喝彩","动车人好给力","动车人真优秀",
+"为动车人鼓掌","给动车人点赞","动车人好厉害","动车人真棒","为动车人加油"];
 // 语气尾巴：拼在文案后，进一步降低重复概率
 const TAILS = ["👍","👍👍","😊","🙏","💪","✨","👏","🚄","❤️","🔥","⭐","🎉"];
 // 洗牌：让每次运行的评论文案顺序都不同
@@ -1123,7 +1119,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v17 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v18 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }

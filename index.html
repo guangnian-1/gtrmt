@@ -115,7 +115,7 @@ details{margin:10px 0}summary{cursor:pointer;color:#58a6ff;font-size:13px}
   <h1>🧰 工具箱</h1>
   <button class="logoutBtn" onclick="doLogout()">退出登录</button>
 </div>
-<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v15</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
+<p class="sub">扫码取 Token + 一键刷分 · 全程手机，无需电脑 <span class="badge" style="background:#23863633;color:#3fb950">v16</span> <span class="badge" id="userBadge" style="background:#1f6feb33;color:#58a6ff"></span></p>
 
 <div class="chip" id="tokChip"><span class="dot" style="background:#f85149"></span><span id="tokChipText">未获取 Token</span></div>
 <div class="kv" id="diag" style="font-size:10.5px;opacity:.8;margin-top:-6px">诊断: 加载中…</div>
@@ -286,6 +286,9 @@ const COMMENTS = [
 "读完深感振奋，继续加油！","铁路精神薪火相传，令人敬佩！","细节之处见真章，好报道！",
 "奋斗的青春最美丽，共勉！","智慧铁路建设成果喜人！","保通保畅，功不可没！",
 "工匠精神值得每个人学习！","新征程新气象，未来可期！","为默默奉献的铁路人鼓掌！"];
+
+// 评论专用文章池：标题含该关键词的文章优先供「留言评论」任务使用
+const COMMENT_KW = "动车";
 
 const LS_AUTH = "gtrmt_auth";
 const LS_SESSION = "gtrmt_session";
@@ -870,12 +873,15 @@ async function collect(){
   }
   const skips=[]; for(let s=0;s<360;s+=20) skips.push(s);
   const pages=await Promise.all(skips.map(fetchPage));
-  const arts=[],vids=[],seen=new Set();
+  const arts=[],vids=[],commentArts=[],seen=new Set();
   for(const vals of pages) for(const a of vals){
     const cid=a._cid||''; if(!cid||seen.has(cid)) continue;
-    seen.add(cid); (a.video?vids:arts).push(a);
+    seen.add(cid);
+    if(a.video){ vids.push(a); continue; }
+    arts.push(a);
+    if((a.title||'').indexOf(COMMENT_KW)>=0) commentArts.push(a);
   }
-  return {arts,vids};
+  return {arts,vids,commentArts};
 }
 async function tSign(need){
   if(!need.sign) return;
@@ -1029,13 +1035,17 @@ async function runScore(){
     log('待补：'+activeTabs.map(t=>t.label+'+'+Math.max(...t.caps.map(k=>need[k]||0))).join('，'));
 
     log('收集文章与视频…');
-    const {arts,vids}=await collect();
-    log('内容池: '+arts.length+' 篇文章, '+vids.length+' 个视频');
+    const {arts,vids,commentArts}=await collect();
+    log('内容池: '+arts.length+' 篇文章, '+vids.length+' 个视频, 其中动车评论文 '+commentArts.length+' 篇');
 
     const state=loadState();
     let idx=0; const take=n=>arts.slice(idx,idx+=n);
+    // 评论专用池：动车主题文章优先，不足则用通用文章补足
+    const cpool=[]; const seenC=new Set();
+    for(const a of commentArts) if(!seenC.has(a._cid)){ seenC.add(a._cid); cpool.push(a); }
+    for(const a of arts) if(!seenC.has(a._cid)){ seenC.add(a._cid); cpool.push(a); }
     const P={read:take(need.click+4),readtime:take(1),like:take(16),
-             comment:take(16),share:take(need.share+6),step:take(need.step+3)};
+             comment:cpool,share:take(need.share+6),step:take(need.step+3)};
 
     // 串行执行各板块，逐板块查分并记录得分
     for(const t of activeTabs){
@@ -1097,7 +1107,7 @@ function setDiag(qr){
   const el=document.getElementById('diag');
   if(!el) return;
   const rem=tokRemain();
-  el.innerHTML=' v15 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
+  el.innerHTML=' v16 · 本地存储:'+(lsOK()?'正常':'<b style="color:#f85149">不可用</b>')
     +' · Token:'+(getToken()?(TOK_SRC+' / '+(rem>0?Math.floor(rem/3600)+'h':'已过期')):'<b style="color:#f85149">无</b>')
     +' · 二维码:'+qr;
 }
